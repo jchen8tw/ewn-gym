@@ -156,7 +156,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         plt.close("all")
 
         self.fig, self.ax = plt.subplots(
-            figsize=(self.board.shape[1], self.board.shape[0]))
+            figsize=(self.board.shape[1] + 1, self.board.shape[0] + 1))
         self.render_board()
         self.ax.grid(which="major", axis="both",
                      linestyle="-", color="gray", linewidth=2)
@@ -202,6 +202,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         if title is not None:
             plt.title(title)
+
+        self.ax.set_xlabel("dice: ")
 
         plt.tight_layout()
 
@@ -270,7 +272,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             self.set_text_color(
                 self.current_cube_pose,
                 self.board[self.current_cube_pos[0], self.current_cube_pos[1]])
-
+        self.ax.set_xlabel(f"dice: {self.dice_roll}")
         if self._step_count == 0:
             plt.pause(1)
         else:
@@ -283,6 +285,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             self.set_text_color(
                 self.current_cube_pos,
                 self.board[self.current_cube_pos[0], self.current_cube_pos[1]])
+        self.ax.set_xlabel(f"dice: {self.dice_roll}")
         self.fig.canvas.draw()
         buf = self.fig.canvas.buffer_rgba()
         data = np.asarray(buf)
@@ -306,7 +309,7 @@ if __name__ == "__main__":
     env.reset()
     states = []
     while True:
-        action = np.random.choice(2)
+        action = np.random.choice(3)
         rgb = env.get_rgb()
         states.append(rgb.copy())
         obs, reward, done, info = env.step(action)
@@ -322,5 +325,5 @@ if __name__ == "__main__":
         save_all=True,
         append_images=images,
         loop=0,
-        duration=500,
+        duration=700,
     )
