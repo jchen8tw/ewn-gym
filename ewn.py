@@ -254,8 +254,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 raise DependencyNotInstalled(
                     "pygame is not installed, run `pip install gymnasium[box2d]`"
                 ) from e
+
+            pygame.init()
             if self.render_mode == "human" and self.screen is None:
-                pygame.init()
                 pygame.display.init()
                 self.screen = pygame.display.set_mode((500, 500))
                 pygame.display.set_caption("Einstein Wuerfelt Nicht")
@@ -320,26 +321,28 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 if __name__ == "__main__":
     # Testing the environment setup
     env = EinsteinWuerfeltNichtEnv(
-        render_mode="human",
+        render_mode="rgb_array",
+        # render_mode="human",
         cube_layer=3,
         board_size=5)
     # env.reset()
     states = []
     while True:
-        env.render()
+        # env.render()
+        states.append(env.render())
         action = env.action_space.sample()
         obs, reward, done, info = env.step(action)
         if done:
             break
 
-    # images = [Image.fromarray(state) for state in states]
-    # images = iter(images)
-    # image = next(images)
-    # image.save(
-    #     f"ewn.gif",
-    #     format="GIF",
-    #     save_all=True,
-    #     append_images=images,
-    #     loop=0,
-    #     duration=700,
-    # )
+    images = [Image.fromarray(state) for state in states]
+    images = iter(images)
+    image = next(images)
+    image.save(
+        f"ewn.gif",
+        format="GIF",
+        save_all=True,
+        append_images=images,
+        loop=0,
+        duration=700,
+    )
