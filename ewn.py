@@ -5,14 +5,14 @@ from matplotlib import colors
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import matplotlib
-from typing import Tuple
+from typing import Tuple, Optional
 from PIL import Image
+import pygame
+from pygame import gfxdraw
 
-COLORS = [
-    "goldenrod",
-    "white",
-    "black",
-]
+
+VIEWPORT_W = 500
+VIEWPORT_H = 500
 
 
 class Player(Enum):
@@ -21,80 +21,131 @@ class Player(Enum):
 
 
 class EinsteinWuerfeltNichtEnv(gym.Env):
-    metadata = {'render.modes': ['human']}
+    """
+    The environment of Einstein Wuerfelt Nicht
+    board_size(int): the size of the board(board_size * board_size)
+    cube_layer(int): the number of layers of the cube
+    seed(int): the seed for the random number generator
+    agent_player: the player of the agent to train
+    """
+    metadata = {'render_modes': ['human', 'rgb_array', 'ansi']}
 
-    def __init__(self, seed: int = 9487):
+    def __init__(self, board_size: int = 5,
+                 cube_layer: int = 3, seed: int = 9487, reward: float = 1., agent_player: Player = Player.TOP_LEFT, render_mode: Optional[str] = None, opponent_policy=None):
         super(EinsteinWuerfeltNichtEnv, self).__init__()
-        self.board = np.zeros((5, 5), dtype=int)
-        self.dice_roll = 1
-        self.current_player = Player.TOP_LEFT
-        self.setup_game()
+
+        # make sure the cube layer is legal
+        # assert board_size % 2 == 1
+        assert cube_layer < board_size - 1
+
+        self.board: np.ndarray = np.zeros((board_size, board_size), dtype=int)
+        cube_num: int = cube_layer * (cube_layer + 1) // 2
+        print("Board size: ", board_size)
+        print("Cube num: ", cube_num)
+        # cube_pos[0] is the position of cube 1, cube_pos[1] is the position of
+        # cube 2, etc.
+        # cube_pos[-1], cube_pos[-2], etc. are the positions of the cubes of the
+        # other player
+        self.cube_pos = np.ma.zeros(
+            (cube_num * 2,), dtype=[("x", int), ("y", int)])
+        self.dice_roll: int = 1
+        self.setup_game(cube_layer=cube_layer)
         # Define action and observation space
-        self.action_space = gym.spaces.Discrete(3)  # 3 possible moves
+        self.action_space = gym.spaces.MultiDiscrete(
+            [2, 3])  # 2 for chosing the large dice or the small dice ,3 possible moves
         self.observation_space = gym.spaces.Dict({
             "board": gym.spaces.Box(low=-6, high=6, shape=(5, 5), dtype=np.int8),
             "dice_roll": gym.spaces.Discrete(6)  # Dice values 1-6
         })
+        # start with the top left player
+        self.current_player = Player.TOP_LEFT
+        self.agent_player = agent_player
+        self.reward = reward
+        if opponent_policy is not None:
+            self.load_opponent_policy(opponent_policy)
         np.random.seed(seed)
-        self.render_init("Einstein Wuerfelt Nicht")
+        self.render_mode = render_mode
+        # self.render_init("Einstein Wuerfelt Nicht")
 
-    def setup_game(self):
+    def roll_dice(self):
+        self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
+
+    def setup_game(self, cube_layer: int = 3):
         # Setting up the initial positions of the cubes for both players
-        self.board[0, :3] = [1, 2, 3]
-        self.board[1, :2] = [4, 5]
-        self.board[2, 0] = 6
-        self.board[-1, -3:] = [-1, -2, -3]
-        self.board[-2, -2:] = [-4, -5]
-        self.board[-3, -1] = -6
+        cnt = 1
+        for i in range(1, cube_layer + 1):
+            for j in range(0, i):
+                self.board[j, i - j - 1] = cnt
+                self.cube_pos[cnt - 1] = (j, i - j - 1)
+                self.board[self.board.shape[0] - 1 - j,
+                           self.board.shape[1] - i + j] = -cnt
+                self.cube_pos[-cnt] = (self.board.shape[0] -
+                                       1 - j, self.board.shape[1] - i + j)
+                cnt += 1
+        self.roll_dice()
 
-    def step(self, action):
-        # Check if the game is already over
-        if self.check_win():
-            return self.board, 0, True, {"message": "Game already ended"}
+    def check_win(self):
+        # Check if any player has reached the opposite corner
+        if self.board[0, 0] < 0 or self.board[-1, -1] > 0:
+            return True
 
-        # Determine the cube to move based on the dice roll
-        cube_to_move = self.find_cube_to_move(
-            self.current_player, self.dice_roll)
+        # Check if any player has removed all opponent's cubes
+        if not np.any(self.board > 0):  # No TOP_LEFT cubes
+            return True
+        if not np.any(self.board < 0):  # No BOTTOM_RIGHT cubes
+            return True
 
-        # Execute the move
-        if cube_to_move is not None:
-            self.execute_move(cube_to_move, action)
+        return False
 
-        # Check for win condition
-        done = self.check_win()
-        reward = 1 if done else 0
-
-        # Switch turn
-        self.current_player = Player.BOTTOM_RIGHT if self.current_player == Player.TOP_LEFT else Player.TOP_LEFT
-
-        self.dice_roll = np.random.randint(
-            1, 7)  # Roll the dice for the next turn
-        return {"board": self.board,
-                "dice_roll": self.dice_roll}, reward, done, {}
-
-    def find_cube_to_move(self, player, dice_roll):
+    def find_cube_to_move(self, chose_larger: bool) -> int | None:
         # Adjust dice roll for player's cube numbers (positive for TOP_LEFT,
         # negative for BOTTOM_RIGHT)
-        dice_roll = dice_roll if player == Player.TOP_LEFT else -dice_roll
+        cube_pos_index: int = self.dice_roll - \
+            1 if self.current_player == Player.TOP_LEFT else -self.dice_roll
 
-        # Find available cubes for the player
-        player_cubes = np.sort([cube for row in self.board for cube in row if (
-            player == Player.TOP_LEFT and cube > 0) or (player == Player.BOTTOM_RIGHT and cube < 0)])
-
-        # Find the cube matching the dice roll, or the nearest one
-        if dice_roll in player_cubes:
-            return dice_roll
+        # Check if there is a cube to move
+        if self.cube_pos.mask[cube_pos_index][0] == False:
+            return cube_pos_index
         else:
-            # Find nearest cube number
-            nearest_cube = min(
-                player_cubes, key=lambda x: (abs(x - dice_roll), x))
-            return nearest_cube
+            near_cube_pos_index = None
+            if chose_larger:
 
-    def execute_move(self, cube, action):
+                # Check if there is a larger cube to move
+                if self.current_player == Player.TOP_LEFT:
+                    for i in range(cube_pos_index + 1,
+                                   self.cube_pos.shape[0] // 2):
+                        if self.cube_pos.mask[i][0] == False:
+                            near_cube_pos_index = i
+                            break
+                else:
+                    for i in range(cube_pos_index - 1, -
+                                   (self.cube_pos.shape[0] // 2 + 1), -1):
+                        if self.cube_pos.mask[i][0] == False:
+                            near_cube_pos_index = i
+                            break
+            else:
+                # Check if there is a smaller cube to move
+                if self.current_player == Player.TOP_LEFT:
+                    for i in range(cube_pos_index - 1, -1, -1):
+                        if self.cube_pos.mask[i][0] == False:
+                            near_cube_pos_index = i
+                            break
+                else:
+                    for i in range(cube_pos_index + 1, 0):
+                        if self.cube_pos.mask[i][0] == False:
+                            near_cube_pos_index = i
+                            break
+
+            return near_cube_pos_index
+
+    def execute_move(self, cube_index: int, action: np.ndarray):
         # Find cube's current position
-        pos = np.argwhere(self.board == cube)[0]
+        pos = self.cube_pos[cube_index]
         x, y = pos[0], pos[1]
-        self.previous_cube_pos = (x, y)
+
+        cube = self.board[x, y]  # Get cube number
+
+        assert cube != 0  # should be a cube not an empty cell
 
         # Determine new position based on action
         if cube > 0:  # TOP_LEFT player
@@ -115,188 +166,80 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 y -= 1  # move diagonal up-left
 
         # Check if move is within the board
-        if 0 <= x < 5 and 0 <= y < 5:
+        if 0 <= x < self.board.shape[0] and 0 <= y < self.board.shape[1]:
             # Perform move and capture if necessary
             self.board[pos[0], pos[1]] = 0  # Remove cube from current position
+            if self.board[x, y] != 0:
+                remove_cube_index = self.board[x, y] - \
+                    1 if self.board[x, y] > 0 else self.board[x, y]
+                # Remove cube from cube_pos
+                self.cube_pos[remove_cube_index] = np.ma.masked
             self.board[x, y] = cube  # Place cube in new position
-            self.current_cube_pos = (x, y)
-        else:
-            self.previous_cube_pos = self.current_cube_pos = None
+            self.cube_pos[cube_index] = (x, y)  # Update cube_pos
 
-    def check_win(self):
-        # Check if any player has reached the opposite corner
-        if self.board[0, 0] < 0 or self.board[4, 4] > 0:
-            return True
+    def load_opponent_policy(self, opponent_policy):
+        """Load the opponent policy"""
+        pass
 
-        # Check if any player has removed all opponent's cubes
-        if not np.any(self.board > 0):  # No TOP_LEFT cubes
-            return True
-        if not np.any(self.board < 0):  # No BOTTOM_RIGHT cubes
-            return True
+    def opponent_action(self) -> np.ndarray:
+        # currently the opponent is a random agent
+        return self.action_space.sample()
 
-        return False
+    def switch_player(self):
+        self.current_player = Player.BOTTOM_RIGHT if self.current_player == Player.TOP_LEFT else Player.TOP_LEFT
+
+    def step(self, action: np.ndarray):
+
+        # Determine the cube to move based on the dice roll
+        cube_to_move_index = self.find_cube_to_move(action[0] == 1)
+
+        # Execute the move
+        if cube_to_move_index is not None:
+            self.execute_move(cube_to_move_index, action[1])
+
+        # Check for win condition
+        if self.check_win():
+            return self.board, self.reward, True, {
+                "message": "You won!"}
+
+        # Switch turn
+        self.switch_player()
+        self.roll_dice()  # Roll the dice for opponent's turn
+
+        # Perform opponent's action
+        opponent_action: np.ndarray = self.opponent_action()
+
+        # Determine the cube to move based on the dice roll
+        cube_to_move_index = self.find_cube_to_move(opponent_action[0] == 1)
+
+        # Execute the move
+        if cube_to_move_index is not None:
+            self.execute_move(cube_to_move_index, opponent_action[1])
+        if self.check_win():
+            return self.board, -self.reward, True, {
+                "message": "You lost!"}
+
+        # Switch turn
+        self.switch_player()
+        # Roll the dice for the next turn
+        self.roll_dice()
+
+        return {"board": self.board,
+                "dice_roll": self.dice_roll}, 0, False, {}
 
     def reset(self):
         self.setup_game()
         self.current_player = Player.TOP_LEFT
-        self.dice_roll = np.random.randint(
-            1, 7)  # Perform an initial dice roll
+        self.roll_dice()  # Perform an initial dice roll
         return {"board": self.board, "dice_roll": self.dice_roll}
 
-    def render_board(self):
-        grid_colors = COLORS
-        cmap = colors.ListedColormap(grid_colors)
-        board_color = self.board.copy()
-        board_color[board_color > 0] = 1
-        board_color[board_color == 0] = 0
-        board_color[board_color < 0] = 2
-        self.ax.imshow(board_color, cmap=cmap, vmin=0, vmax=2)
-
-    def render_init(self, title="Einstein Wuerfelt Nicht"):
-        plt.close("all")
-
-        self.fig, self.ax = plt.subplots(
-            figsize=(self.board.shape[1] + 1, self.board.shape[0] + 1))
-        self.render_board()
-        self.ax.grid(which="major", axis="both",
-                     linestyle="-", color="gray", linewidth=2)
-        self.ax.set_xticks(np.arange(-0.5, self.board.shape[1], 1))
-        self.ax.set_yticks(np.arange(-0.5, self.board.shape[0], 1))
-        self.ax.set_xticklabels([])
-        self.ax.set_yticklabels([])
-        self.ax.tick_params(length=0)
-        self.previous_cube_pos: Tuple[int, int] = None
-        self.current_cube_pos: Tuple[int, int] = None
-
-        for i in range(self.board.shape[0]):
-            for j in range(self.board.shape[1]):
-                if self.board[i, j] == 0:
-                    self.ax.text(
-                        j,
-                        i,
-                        "",
-                        ha="center",
-                        va="center",
-                        color="k",
-                    )
-
-                elif self.board[i, j] > 0:
-                    self.ax.text(
-                        j,
-                        i,
-                        f"{self.board[i, j]}",
-                        ha="center",
-                        va="center",
-                        color="k",
-                    )
-
-                else:
-                    self.ax.text(
-                        j,
-                        i,
-                        f"{self.board[i, j]}",
-                        ha="center",
-                        va="center",
-                        color="w",
-                    )
-
-        if title is not None:
-            plt.title(title)
-
-        self.ax.set_xlabel("dice: ")
-
-        plt.tight_layout()
-
-    def visualize(self, filename=None):
-        if filename is not None:
-            plt.savefig(filename)
-        else:
-            plt.show()
-
-    def set_text_color(self, pos: Tuple[int, int], cube: int):
-        """Sets the color and text of a grid cell.
-
-        Args:
-            pos (Tuple[int, int]): The position (row, column) of the cell to update.
-            cube (int): The cube number of the current cell.
-        """
-        x, y = pos
-        if cube == 0:
-            cell_color = COLORS[0]
-            text = ""
-            text_color = "k"  # black (won't be visible as text is empty)
-        elif cube < 0:
-            cell_color = COLORS[2]
-            text = str(cube)
-            text_color = "white"
-        else:  # cube < 0
-            cell_color = COLORS[1]
-            text = str(cube)
-            text_color = "black"
-
-        # Find and update the rectangle patch
-        found_patch = False
-        for artist in self.ax.patches:
-            artist_x, artist_y = artist.get_xy()
-            if int(artist_x + 0.5) == y and int(artist_y + 0.5) == x:
-                artist.set_color(cell_color)
-                found_patch = True
-                break
-
-        if not found_patch:
-            # If no patch found, create a new one
-            rect = patches.Rectangle(
-                (y - 0.5, x - 0.5), 1, 1, color=cell_color)
-            self.ax.add_patch(rect)
-
-        # Find and update the text object
-        for artist in self.ax.get_children():
-            if isinstance(artist, matplotlib.text.Text):
-                artist_x, artist_y = artist.get_position()
-                if int(artist_x) == y and int(artist_y) == x:
-                    artist.set_text(text)  # Set the new text
-                    artist.set_color(text_color)  # Set the new text color
-                    break
-
-    def rgb_render(
-        self,
-    ) -> np.ndarray | None:
-        """Render the environment as RGB image
-
-        Args:
-            title (str | None, optional): Title. Defaults to None.
-        """
-        if self.previous_cube_pos is not None:
-            self.set_text_color(self.previous_cube_pos, 0)
-        if self.current_cube_pos is not None:
-            self.set_text_color(
-                self.current_cube_pose,
-                self.board[self.current_cube_pos[0], self.current_cube_pos[1]])
-        self.ax.set_xlabel(f"dice: {self.dice_roll}")
-        if self._step_count == 0:
-            plt.pause(1)
-        else:
-            plt.pause(0.25)
-
-    def get_rgb(self) -> np.ndarray:
-        if self.previous_cube_pos is not None:
-            self.set_text_color(self.previous_cube_pos, 0)
-        if self.current_cube_pos is not None:
-            self.set_text_color(
-                self.current_cube_pos,
-                self.board[self.current_cube_pos[0], self.current_cube_pos[1]])
-        self.ax.set_xlabel(f"dice: {self.dice_roll}")
-        self.fig.canvas.draw()
-        buf = self.fig.canvas.buffer_rgba()
-        data = np.asarray(buf)
-        return data
-
-    # def render(self, mode='human'):
-    #     # Render the environment to the screen
-    #     print("dice:")
-    #     print(self.dice_roll)
-    #     print("board:")
-    #     print(self.board)
+    def render(self):
+        # Render the environment to the screen
+        if self.render_mode == "ansi":
+            print("dice:")
+            print(self.dice_roll)
+            print("board:")
+            print(self.board)
 
     def close(self):
         # Any cleanup goes here
@@ -305,25 +248,27 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
 if __name__ == "__main__":
     # Testing the environment setup
-    env = EinsteinWuerfeltNichtEnv()
-    env.reset()
+    env = EinsteinWuerfeltNichtEnv(
+        render_mode="ansi",
+        cube_layer=3,
+        board_size=5)
+    # env.reset()
     states = []
     while True:
-        action = np.random.choice(3)
-        rgb = env.get_rgb()
-        states.append(rgb.copy())
+        action = env.action_space.sample()
         obs, reward, done, info = env.step(action)
+        env.render()
         if done:
             break
 
-    images = [Image.fromarray(state) for state in states]
-    images = iter(images)
-    image = next(images)
-    image.save(
-        f"ewn.gif",
-        format="GIF",
-        save_all=True,
-        append_images=images,
-        loop=0,
-        duration=700,
-    )
+    # images = [Image.fromarray(state) for state in states]
+    # images = iter(images)
+    # image = next(images)
+    # image.save(
+    #     f"ewn.gif",
+    #     format="GIF",
+    #     save_all=True,
+    #     append_images=images,
+    #     loop=0,
+    #     duration=700,
+    # )
