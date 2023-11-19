@@ -1,4 +1,5 @@
 import gymnasium as gym
+from gymnasium.error import DependencyNotInstalled
 import numpy as np
 from enum import Enum
 from matplotlib import colors
@@ -11,8 +12,9 @@ import pygame
 from pygame import gfxdraw
 
 
-VIEWPORT_W = 500
-VIEWPORT_H = 500
+VIEWPORT_SIZE = 500
+FPS = 1
+FONT_SIZE = VIEWPORT_SIZE // 25
 
 
 class Player(Enum):
@@ -64,8 +66,12 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         if opponent_policy is not None:
             self.load_opponent_policy(opponent_policy)
         np.random.seed(seed)
+
+        # Rendering
         self.render_mode = render_mode
-        # self.render_init("Einstein Wuerfelt Nicht")
+        self.screen = None
+        self.clock = None
+        self.surf = None
 
     def roll_dice(self):
         self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
@@ -240,24 +246,89 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             print(self.dice_roll)
             print("board:")
             print(self.board)
+        elif self.render_mode == "human" or self.render_mode == "rgb_array":
+            try:
+                import pygame
+                from pygame import gfxdraw
+            except ImportError as e:
+                raise DependencyNotInstalled(
+                    "pygame is not installed, run `pip install gymnasium[box2d]`"
+                ) from e
+            if self.render_mode == "human" and self.screen is None:
+                pygame.init()
+                pygame.display.init()
+                self.screen = pygame.display.set_mode((500, 500))
+                pygame.display.set_caption("Einstein Wuerfelt Nicht")
+            if self.clock is None:
+                self.clock = pygame.time.Clock()
+
+            self.surf = pygame.Surface((VIEWPORT_SIZE, VIEWPORT_SIZE))
+            # draw the board
+            self.surf.fill((211, 179, 104))
+            font = pygame.font.SysFont("Arial", FONT_SIZE)
+            dice_num = font.render(
+                f"d: {str(self.dice_roll)}", True, (0, 0, 0))
+            self.surf.blit(dice_num, (0, 0))
+
+            line_width = VIEWPORT_SIZE // self.board.shape[0]
+
+            for i in range(1, self.board.shape[0]):
+                gfxdraw.hline(self.surf, 0, VIEWPORT_SIZE,
+                              i * line_width, (0, 0, 0))
+                gfxdraw.vline(self.surf, i *
+                              line_width, 0, VIEWPORT_SIZE, (0, 0, 0))
+
+            # draw the cubes
+            for i in range(self.cube_pos.shape[0]):
+                if self.cube_pos.mask[i][0] != True:
+                    x, y = self.cube_pos[i]
+                    cube = self.board[x, y]
+                    if cube > 0:
+                        color = (255, 255, 255)
+                        text_color = (0, 0, 0)
+                    else:
+                        color = (0, 0, 0)
+                        text_color = (255, 255, 255)
+                    gfxdraw.aacircle(self.surf, int((y + 0.5) * line_width), int(
+                        (x + 0.5) * line_width), int(line_width * 0.4), color)
+                    gfxdraw.filled_circle(self.surf, int((y + 0.5) * line_width), int(
+                        (x + 0.5) * line_width), int(line_width * 0.4), color)
+                    cube_num = font.render(
+                        str(abs(cube)), True, text_color)
+                    self.surf.blit(cube_num, (int((y + 0.5) * line_width) - FONT_SIZE // 3, int(
+                        (x + 0.5) * line_width) - FONT_SIZE // 2))
+
+            if self.render_mode == "human":
+                assert self.screen is not None
+                self.screen.blit(self.surf, (0, 0))
+                pygame.event.pump()
+                self.clock.tick(FPS)
+                pygame.display.flip()
+            elif self.render_mode == "rgb_array":
+                return np.transpose(
+                    np.array(pygame.surfarray.pixels3d(self.surf)), axes=(1, 0, 2)
+                )
 
     def close(self):
         # Any cleanup goes here
-        pass
+        if self.screen is not None:
+            import pygame
+            pygame.display.quit()
+            pygame.quit()
 
 
 if __name__ == "__main__":
     # Testing the environment setup
     env = EinsteinWuerfeltNichtEnv(
-        render_mode="ansi",
+        render_mode="human",
         cube_layer=3,
         board_size=5)
     # env.reset()
     states = []
     while True:
+        env.render()
         action = env.action_space.sample()
         obs, reward, done, info = env.step(action)
-        env.render()
         if done:
             break
 
