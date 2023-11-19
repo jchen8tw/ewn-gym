@@ -28,7 +28,12 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
     render_mode: the mode to render the environment
     opponent_policy: the policy of the opponent
     """
-    metadata = {'render_modes': ['human', 'rgb_array', 'ansi']}
+    metadata = {
+        'render_modes': [
+            'human',
+            'rgb_array',
+            'ansi'],
+        'render_fps': FPS}
 
     def __init__(self, board_size: int = 5,
                  cube_layer: int = 3, seed: int = 9487, reward: float = 1., agent_player: Player = Player.TOP_LEFT, render_mode: Optional[str] = None, opponent_policy=None):
@@ -38,7 +43,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         # assert board_size % 2 == 1
         assert cube_layer < board_size - 1
 
-        self.board: np.ndarray = np.zeros((board_size, board_size), dtype=int)
+        self.board: np.ndarray = np.zeros(
+            (board_size, board_size), dtype=np.int8)
         cube_num: int = cube_layer * (cube_layer + 1) // 2
         print("Board size: ", board_size)
         print("Cube num: ", cube_num)
@@ -257,9 +263,10 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         return {"board": self.board,
                 "dice_roll": self.dice_roll}, 0, False, False, {}
 
-    def reset(self, seed: int = 9487):
+    def reset(self, seed: Optional[int] = None):
         self.current_player = Player.TOP_LEFT
         np.random.seed(seed)
+        self.action_space.seed(seed)
         self.setup_game()
         return {"board": self.board,
                 "dice_roll": self.dice_roll}, {}
@@ -356,7 +363,7 @@ if __name__ == "__main__":
         # env.render()
         states.append(env.render())
         action = env.action_space.sample()
-        obs, reward, done, info = env.step(action)
+        obs, reward, done, truncated, info = env.step(action)
         if done:
             break
 

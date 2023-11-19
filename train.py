@@ -23,7 +23,7 @@ my_config = {
 
     "algorithm": A2C,
     "policy_network": "MultiInputPolicy",
-    "save_path": "models/sample_model",
+    "save_path": "models/sample_model2",
 
     "epoch_num": 5,
     # "timesteps_per_epoch": 100,
@@ -83,6 +83,7 @@ def train(env, model, config):
 
         print("Avg_score:  ", avg_score)
         print("Reward_list:  ", reward_list)
+        print("Win rate:  ", (avg_score + 1) / 2)
         print()
         # wandb.log(
         #     {"avg_highest": avg_highest,
