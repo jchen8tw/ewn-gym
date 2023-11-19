@@ -2,10 +2,6 @@ import gymnasium as gym
 from gymnasium.error import DependencyNotInstalled
 import numpy as np
 from enum import Enum
-from matplotlib import colors
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import matplotlib
 from typing import Tuple, Optional
 from PIL import Image
 import pygame
@@ -44,6 +40,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         cube_num: int = cube_layer * (cube_layer + 1) // 2
         print("Board size: ", board_size)
         print("Cube num: ", cube_num)
+        self.cube_layer: int = cube_layer
         # cube_pos[0] is the position of cube 1, cube_pos[1] is the position of
         # cube 2, etc.
         # cube_pos[-1], cube_pos[-2], etc. are the positions of the cubes of the
@@ -51,7 +48,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.cube_pos = np.ma.zeros(
             (cube_num * 2,), dtype=[("x", int), ("y", int)])
         self.dice_roll: int = 1
-        self.setup_game(cube_layer=cube_layer)
         # Define action and observation space
         self.action_space = gym.spaces.MultiDiscrete(
             [2, 3])  # 2 for chosing the large dice or the small dice ,3 possible moves
@@ -67,6 +63,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             self.load_opponent_policy(opponent_policy)
         np.random.seed(seed)
 
+        # Setup the game
+        self.reset()
+
         # Rendering
         self.render_mode = render_mode
         self.screen = None
@@ -76,10 +75,10 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
     def roll_dice(self):
         self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
 
-    def setup_game(self, cube_layer: int = 3):
+    def setup_game(self):
         # Setting up the initial positions of the cubes for both players
         cnt = 1
-        for i in range(1, cube_layer + 1):
+        for i in range(1, self.cube_layer + 1):
             for j in range(0, i):
                 self.board[j, i - j - 1] = cnt
                 self.cube_pos[cnt - 1] = (j, i - j - 1)
@@ -89,6 +88,27 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                                        1 - j, self.board.shape[1] - i + j)
                 cnt += 1
         self.roll_dice()
+
+        # The opponent will move first if the agent is the bottom right player
+        if self.agent_player == Player.BOTTOM_RIGHT:
+            # Perform opponent's action
+            opponent_action: np.ndarray = self.opponent_action()
+
+            # Determine the cube to move based on the dice roll
+            cube_to_move_index = self.find_cube_to_move(
+                opponent_action[0] == 1)
+
+            # Execute the move
+            if cube_to_move_index is not None:
+                self.execute_move(cube_to_move_index, opponent_action[1])
+            if self.check_win():
+                return self.board, -self.reward, True, {
+                    "message": "You lost!"}
+
+            # Switch turn
+            self.switch_player()
+            # Roll the dice for the next turn
+            self.roll_dice()
 
     def check_win(self):
         # Check if any player has reached the opposite corner
@@ -234,9 +254,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 "dice_roll": self.dice_roll}, 0, False, {}
 
     def reset(self):
-        self.setup_game()
         self.current_player = Player.TOP_LEFT
-        self.roll_dice()  # Perform an initial dice roll
+        self.setup_game()
         return {"board": self.board, "dice_roll": self.dice_roll}
 
     def render(self):
@@ -323,9 +342,9 @@ if __name__ == "__main__":
     env = EinsteinWuerfeltNichtEnv(
         render_mode="rgb_array",
         # render_mode="human",
-        cube_layer=3,
-        board_size=5)
-    # env.reset()
+        cube_layer=1,
+        board_size=3)
+    obs = env.reset()
     states = []
     while True:
         # env.render()
