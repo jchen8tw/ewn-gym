@@ -61,11 +61,11 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.action_space = gym.spaces.MultiDiscrete(
             [2, 3])  # 2 for chosing the large dice or the small dice ,3 possible moves
         self.observation_space = gym.spaces.Dict({
-            "board": gym.spaces.Box(low=-cube_num, high=cube_num, shape=(5, 5), dtype=np.int16),
+            "board": gym.spaces.Box(low=-cube_num, high=cube_num, shape=(board_size, board_size), dtype=np.int16),
             # Dice values 1-6
             # turnaround for bug of sb3 when using one-hot encoding
             # should be Discrete(cube_num, start=1)
-            "dice_roll": gym.spaces.Discrete(cube_num, start=1)
+            "dice_roll": gym.spaces.Discrete(cube_num + 1, start=1)
         })
         # start with the top left player
         self.current_player = Player.TOP_LEFT
@@ -85,8 +85,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.surf = None
 
     def roll_dice(self):
-        # self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
-        self.dice_roll = self.observation_space["dice_roll"].sample()
+        self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
+        # self.dice_roll = self.observation_space["dice_roll"].sample()
 
     def setup_game(self):
         # Setting up the initial positions of the cubes for both players
