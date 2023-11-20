@@ -54,7 +54,7 @@ def evaluation(env, model, render_last, eval_num=100):
 if __name__ == "__main__":
     # Change path name to load different models
     model_path = "models/sample_model/2"
-    env = gym.make('EWN-v0', render_mode="human")
+    env = gym.make('EWN-v0')
 
     # Load model with SB3
     # Note: Model can be loaded with arbitrary algorithm class for evaluation
@@ -69,14 +69,3 @@ if __name__ == "__main__":
     # print("Avg_highest:", np.sum(highest) / eval_num)
 
     print(f"Counts: (Total of {eval_num} rollouts)")
-    # df = pd.DataFrame(highest, columns=["highest"]).astype(str)
-    # fig = px.histogram(
-    #     df,
-    #     x="highest",
-    #     category_orders=dict(
-    #         highest=[
-    #             "64",
-    #             "128",
-    #             "256",
-    #             "512"]))
-    # fig.show()

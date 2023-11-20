@@ -12,7 +12,10 @@ register(
 )
 
 
-env = gym.make("EWN-v0", render_mode="human", cube_layer=3, board_size=5)
+env = gym.make("EWN-v0", render_mode="human",
+               cube_layer=3,
+               board_size=5,
+               opponent_policy="models/sample_model/2")
 
 # Key mappings
 key_to_action = {

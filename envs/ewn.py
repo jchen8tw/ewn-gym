@@ -6,6 +6,7 @@ from typing import Tuple, Optional
 from PIL import Image
 import pygame
 from pygame import gfxdraw
+from stable_baselines3 import A2C
 
 
 VIEWPORT_SIZE = 700
@@ -36,7 +37,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         'render_fps': FPS}
 
     def __init__(self, board_size: int = 5,
-                 cube_layer: int = 3, seed: int = 9487, reward: float = 1., agent_player: Player = Player.TOP_LEFT, render_mode: Optional[str] = None, opponent_policy=None):
+                 cube_layer: int = 3, seed: int = 9487, reward: float = 1., agent_player: Player = Player.TOP_LEFT, render_mode: Optional[str] = None, opponent_policy: str = "random"):
         super(EinsteinWuerfeltNichtEnv, self).__init__()
 
         # make sure the cube layer is legal
@@ -64,14 +65,15 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             # Dice values 1-6
             # turnaround for bug of sb3 when using one-hot encoding
             # should be Discrete(cube_num, start=1)
-            "dice_roll": gym.spaces.Discrete(cube_num + 1, start=1)
+            "dice_roll": gym.spaces.Discrete(cube_num, start=1)
         })
         # start with the top left player
         self.current_player = Player.TOP_LEFT
         self.agent_player = agent_player
         self.reward = reward
-        if opponent_policy is not None:
-            self.load_opponent_policy(opponent_policy)
+        # make sure the opponent policy is legal
+        assert opponent_policy is not None
+        self.load_opponent_policy(opponent_policy)
 
         # Setup the game
         self.reset(seed=seed)
@@ -83,7 +85,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.surf = None
 
     def roll_dice(self):
-        self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
+        # self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
+        self.dice_roll = self.observation_space["dice_roll"].sample()
 
     def setup_game(self):
         # Setting up the initial positions of the cubes for both players
@@ -112,7 +115,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             if cube_to_move_index is not None:
                 self.execute_move(cube_to_move_index, opponent_action[1])
             if self.check_win():
-                return self.board, -self.reward, True, {
+                return {"board": self.board,
+                        "dice_roll": self.dice_roll}, -self.reward, True, {
                     "message": "You lost!"}
 
             # Switch turn
@@ -213,13 +217,23 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             self.board[x, y] = cube  # Place cube in new position
             self.cube_pos[cube_index] = (x, y)  # Update cube_pos
 
-    def load_opponent_policy(self, opponent_policy: Optional[str] = None):
+    def load_opponent_policy(self, opponent_policy: str):
         """Load the opponent policy"""
-        pass
+        if opponent_policy is "random":
+            self.opponent_policy = "random"
+        else:
+            self.opponent_policy = A2C.load(opponent_policy)
 
     def opponent_action(self) -> np.ndarray:
         # currently the opponent is a random agent
-        return self.action_space.sample()
+        if self.opponent_policy is "random":
+            return self.action_space.sample()
+        else:
+            # turn the board upside down and negate the board for the opponent
+            # This makes the policy of both player consistent
+            action, _state = self.opponent_policy.predict({"board": np.rot90(-self.board, 2),
+                                                           "dice_roll": self.dice_roll})
+        return action
 
     def switch_player(self):
         self.current_player = Player.BOTTOM_RIGHT if self.current_player == Player.TOP_LEFT else Player.TOP_LEFT
@@ -235,7 +249,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         # Check for win condition
         if self.check_win():
-            return self.board, self.reward, True, False, {
+            return {"board": self.board,
+                    "dice_roll": self.dice_roll}, self.reward, True, False, {
                 "message": "You won!"}
 
         # Switch turn
@@ -252,7 +267,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         if cube_to_move_index is not None:
             self.execute_move(cube_to_move_index, opponent_action[1])
         if self.check_win():
-            return self.board, -self.reward, True, False, {
+            return {"board": self.board,
+                    "dice_roll": self.dice_roll}, -self.reward, True, False, {
                 "message": "You lost!"}
 
         # Switch turn
