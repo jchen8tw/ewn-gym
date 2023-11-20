@@ -12,9 +12,9 @@ class ExpectiminimaxAgent:
             best_val = -float('inf')
             best_move = None
             for move in env.get_legal_moves(player):
-                env.make_move(*move)
+                env.make_simulated_move(move)
                 val, _ = self.expectiminimax(env, depth - 1, 'chance', env.agent_player)
-                env.undo_move()
+                env.undo_simulated_move()
                 if val > best_val:
                     best_val = val
                     best_move = move
@@ -23,9 +23,9 @@ class ExpectiminimaxAgent:
             worst_val = float('inf')
             worst_move = None
             for move in env.get_legal_moves(player):
-                env.make_move(*move)
+                env.make_simulated_move(move)
                 val, _ = self.expectiminimax(env, depth - 1, 'chance', env.get_opponent(env.agent_player))
-                env.undo_move()
+                env.undo_simulated_move()
                 if val < worst_val:
                     worst_val = val
                     worst_move = move
@@ -55,15 +55,19 @@ if __name__ == "__main__":
     agent = ExpectiminimaxAgent(max_depth=3)
     obs = env.reset()
     states = []
+
     while True:
         # env.render()
         states.append(env.render())
         #action = env.action_space.sample()
         action = agent.choose_move(env)
+        env.dice_roll = env.original_dice_roll
         obs, reward, done, info = env.step(action)
         if done:
+            print(info)
             break
 
+    """
     images = [Image.fromarray(state) for state in states]
     images = iter(images)
     image = next(images)
@@ -75,3 +79,4 @@ if __name__ == "__main__":
         loop=0,
         duration=700,
     )
+    """
