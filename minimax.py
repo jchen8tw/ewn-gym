@@ -13,7 +13,7 @@ class ExpectiminimaxAgent:
             best_move = None
             for move in env.get_legal_moves(player):
                 env.make_simulated_move(move)
-                val, _ = self.expectiminimax(env, depth - 1, 'chance', env.agent_player)
+                val, _ = self.expectiminimax(env, depth - 1, 'chance', player)
                 env.undo_simulated_move()
                 if val > best_val:
                     best_val = val
@@ -24,7 +24,7 @@ class ExpectiminimaxAgent:
             worst_move = None
             for move in env.get_legal_moves(player):
                 env.make_simulated_move(move)
-                val, _ = self.expectiminimax(env, depth - 1, 'chance', env.get_opponent(env.agent_player))
+                val, _ = self.expectiminimax(env, depth - 1, 'chance', player)
                 env.undo_simulated_move()
                 if val < worst_val:
                     worst_val = val
@@ -35,8 +35,8 @@ class ExpectiminimaxAgent:
             next_player = env.agent_player if parent == env.get_opponent(env.agent_player) else env.get_opponent(env.agent_player)
             for dice_roll in range(1, 7):
                 env.set_dice_roll(dice_roll)
-                val, _ = self.expectiminimax(env, depth - 1, next_player, 'chance')
-                expected_val += val / 6  # Assuming each dice outcome is equally likely
+                val, _ = self.expectiminimax(env, depth - 1, next_player, player)
+                expected_val += val / 6
             return expected_val, None
 
     def choose_move(self, env):
@@ -47,9 +47,9 @@ class ExpectiminimaxAgent:
 if __name__ == "__main__":
     # Testing the environment setup
     env = EinsteinWuerfeltNichtEnv(
-        render_mode="ansi",
+        #render_mode="ansi",
         #render_mode="rgb_array",
-        #render_mode="human",
+        render_mode="human",
         cube_layer=3,
         board_size=5)
     agent = ExpectiminimaxAgent(max_depth=3)
@@ -61,7 +61,8 @@ if __name__ == "__main__":
         states.append(env.render())
         #action = env.action_space.sample()
         action = agent.choose_move(env)
-        env.dice_roll = env.original_dice_roll
+        #env.dice_roll = env.original_dice_roll
+        env.dice_roll = obs['dice_roll']
         obs, reward, done, info = env.step(action)
         if done:
             print(info)

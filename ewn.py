@@ -80,7 +80,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
     def roll_dice(self):
         self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
-        self.original_dice_roll = self.dice_roll
 
     def setup_game(self):
         # Setting up the initial positions of the cubes for both players
@@ -246,7 +245,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         return 0  # Game is still ongoing or no clear win/loss for agent player
 
-    def get_cube_legal_moves(self, cube_pos_index, chose_bigger):
+    def get_cube_legal_moves(self, cube_pos_index: int, chose_bigger: bool):
         cube_legal_moves = []
         pos = self.cube_pos[cube_pos_index]
         
@@ -274,7 +273,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 elif action == 2:
                     x -= 1
                     y -= 1  # move diagonal up-left
-
+            
             # Check if move is within the board
             if 0 <= x < self.board.shape[0] and 0 <= y < self.board.shape[1]:
                 if chose_bigger:
@@ -330,7 +329,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             return legal_moves
 
     def make_simulated_move(self, action: np.ndarray):
-        
         # Determine the cube to move based on the dice roll
         cube_to_move_index = self.find_cube_to_move(action[0] == 1)
         
