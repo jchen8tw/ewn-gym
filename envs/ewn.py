@@ -49,8 +49,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.board: np.ndarray = np.zeros(
             (board_size, board_size), dtype=np.int16)
         cube_num: int = cube_layer * (cube_layer + 1) // 2
-        print("Board size: ", board_size)
-        print("Cube num: ", cube_num)
+        #print("Board size: ", board_size)
+        #print("Cube num: ", cube_num)
         self.cube_layer: int = cube_layer
         # cube_pos[0] is the position of cube 1, cube_pos[1] is the position of
         # cube 2, etc.
@@ -266,8 +266,31 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 return 1
             if self.board[-1, -1] > 0 or not np.any(self.board < 0):  # Agent player loses
                 return -1
+        
+        board_height, board_width = self.board.shape
 
-        return 0  # Game is still ongoing or no clear win/loss for agent player
+        # Initialize the score
+        score = 0
+
+        # Calculate the distance of each player's pieces to the opposite corner
+        for i in range(board_height):
+            for j in range(board_width):
+                if self.board[i, j] > 0:  # Pieces of TOP_LEFT player
+                    # Add distance from bottom-right corner
+                    score += (board_height - 1 - i) + (board_width - 1 - j)
+                elif self.board[i, j] < 0:  # Pieces of BOTTOM_RIGHT player
+                    # Subtract distance from top-left corner
+                    score -= i + j
+
+        # Consider the impact of the number of pieces remaining
+        top_left_pieces = np.count_nonzero(self.board > 0)
+        bottom_right_pieces = np.count_nonzero(self.board < 0)
+        piece_difference = top_left_pieces - bottom_right_pieces
+        some_factor = 1  # This is a parameter that might need adjustment
+        score += piece_difference * some_factor
+
+        # Return a positive score for TOP_LEFT player, and negative for BOTTOM_RIGHT
+        return score if self.agent_player == Player.TOP_LEFT else -score
 
     def get_cube_legal_moves(self, cube_pos_index: int, chose_bigger: bool):
         cube_legal_moves = []
@@ -575,7 +598,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 if __name__ == "__main__":
     # Testing the environment setup
     env = EinsteinWuerfeltNichtEnv(
-        render_mode="ansi",
+        #render_mode="ansi",
         #render_mode="rgb_array",
         #render_mode="human",
         cube_layer=3,
