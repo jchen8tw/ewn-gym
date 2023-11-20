@@ -8,7 +8,7 @@ import pygame
 from pygame import gfxdraw
 
 
-VIEWPORT_SIZE = 500
+VIEWPORT_SIZE = 700
 FPS = 1
 FONT_SIZE = VIEWPORT_SIZE // 25
 
@@ -44,7 +44,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         assert cube_layer < board_size - 1
 
         self.board: np.ndarray = np.zeros(
-            (board_size, board_size), dtype=np.int8)
+            (board_size, board_size), dtype=np.int16)
         cube_num: int = cube_layer * (cube_layer + 1) // 2
         print("Board size: ", board_size)
         print("Cube num: ", cube_num)
@@ -60,7 +60,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.action_space = gym.spaces.MultiDiscrete(
             [2, 3])  # 2 for chosing the large dice or the small dice ,3 possible moves
         self.observation_space = gym.spaces.Dict({
-            "board": gym.spaces.Box(low=-cube_num, high=cube_num, shape=(5, 5), dtype=np.int8),
+            "board": gym.spaces.Box(low=-cube_num, high=cube_num, shape=(5, 5), dtype=np.int16),
             # Dice values 1-6
             # turnaround for bug of sb3 when using one-hot encoding
             # should be Discrete(cube_num, start=1)
@@ -213,7 +213,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             self.board[x, y] = cube  # Place cube in new position
             self.cube_pos[cube_index] = (x, y)  # Update cube_pos
 
-    def load_opponent_policy(self, opponent_policy):
+    def load_opponent_policy(self, opponent_policy: Optional[str] = None):
         """Load the opponent policy"""
         pass
 
@@ -290,18 +290,20 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             pygame.init()
             if self.render_mode == "human" and self.screen is None:
                 pygame.display.init()
-                self.screen = pygame.display.set_mode((500, 500))
+                self.screen = pygame.display.set_mode(
+                    (VIEWPORT_SIZE, VIEWPORT_SIZE + FONT_SIZE))
                 pygame.display.set_caption("Einstein Wuerfelt Nicht")
             if self.clock is None:
                 self.clock = pygame.time.Clock()
 
-            self.surf = pygame.Surface((VIEWPORT_SIZE, VIEWPORT_SIZE))
+            self.surf = pygame.Surface(
+                (VIEWPORT_SIZE, VIEWPORT_SIZE + FONT_SIZE))
             # draw the board
             self.surf.fill((211, 179, 104))
             font = pygame.font.SysFont("Arial", FONT_SIZE)
             dice_num = font.render(
-                f"d: {str(self.dice_roll)}", True, (0, 0, 0))
-            self.surf.blit(dice_num, (0, 0))
+                f"dice: {str(self.dice_roll)}", True, (0, 0, 0))
+            self.surf.blit(dice_num, (0, VIEWPORT_SIZE))
 
             line_width = VIEWPORT_SIZE // self.board.shape[0]
 
@@ -310,7 +312,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                               i * line_width, (0, 0, 0))
                 gfxdraw.vline(self.surf, i *
                               line_width, 0, VIEWPORT_SIZE, (0, 0, 0))
-
+            # last line at the bottom
+            gfxdraw.hline(self.surf, 0, VIEWPORT_SIZE,
+                          VIEWPORT_SIZE, (0, 0, 0))
             # draw the cubes
             for i in range(self.cube_pos.shape[0]):
                 if self.cube_pos.mask[i][0] != True:
@@ -335,7 +339,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 assert self.screen is not None
                 self.screen.blit(self.surf, (0, 0))
                 pygame.event.pump()
-                self.clock.tick(FPS)
+                self.clock.tick(self.metadata["render_fps"])
                 pygame.display.flip()
             elif self.render_mode == "rgb_array":
                 return np.transpose(

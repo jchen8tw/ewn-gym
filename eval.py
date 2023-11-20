@@ -1,6 +1,6 @@
 import gymnasium as gym
 from gymnasium.envs.registration import register
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, A2C
 # import plotly.graph_objects as go
 # import plotly.express as px
 import pandas as pd
@@ -54,12 +54,12 @@ def evaluation(env, model, render_last, eval_num=100):
 if __name__ == "__main__":
     # Change path name to load different models
     model_path = "models/sample_model/2"
-    env = gym.make('EWN-v0')
+    env = gym.make('EWN-v0', render_mode="human")
 
     # Load model with SB3
     # Note: Model can be loaded with arbitrary algorithm class for evaluation
     # (You don't necessarily need to use PPO for training)
-    model = PPO.load(model_path)
+    model = A2C.load(model_path)
 
     eval_num = 1000
     score = evaluation(env, model, True, eval_num)
