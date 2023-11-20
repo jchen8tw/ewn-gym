@@ -332,6 +332,10 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         # Determine the cube to move based on the dice roll
         cube_to_move_index = self.find_cube_to_move(action[0] == 1)
         
+        if cube_to_move_index is None:
+            self.history.append(None)
+            return
+        
         # Find cube's current position
         pos = self.cube_pos[cube_to_move_index]
         x, y = pos[0], pos[1]
@@ -379,7 +383,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             
             self.cube_pos[cube_to_move_index] = (x, y)  # Update cube_pos
         else:
-            self.history.append((None, None, None, None, None, None))
+            self.history.append(None)
 
     def undo_simulated_move(self):
         if not self.history:
@@ -387,9 +391,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         # Retrieve the last move
         last_move = self.history.pop()
-        cube_to_move_index, cube_to_move, original_pos, new_pos, remove_cube_index, remove_cube = last_move
-        if cube_to_move_index is None:
+        if last_move is None:
             return
+        cube_to_move_index, cube_to_move, original_pos, new_pos, remove_cube_index, remove_cube = last_move
 
         # Restore the cube to its original position
         self.board[new_pos[0], new_pos[1]] = 0  # Clear new position
