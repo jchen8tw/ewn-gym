@@ -6,11 +6,12 @@ from typing import Tuple, Optional
 from PIL import Image
 import pygame
 from pygame import gfxdraw
+from stable_baselines3 import A2C
 
 import pdb
 
 
-VIEWPORT_SIZE = 500
+VIEWPORT_SIZE = 700
 FPS = 1
 FONT_SIZE = VIEWPORT_SIZE // 25
 
@@ -27,18 +28,26 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
     cube_layer(int): the number of layers of the cube
     seed(int): the seed for the random number generator
     agent_player: the player of the agent to train
+    render_mode: the mode to render the environment
+    opponent_policy: the policy of the opponent
     """
-    metadata = {'render_modes': ['human', 'rgb_array', 'ansi']}
+    metadata = {
+        'render_modes': [
+            'human',
+            'rgb_array',
+            'ansi'],
+        'render_fps': FPS}
 
     def __init__(self, board_size: int = 5,
-                 cube_layer: int = 3, seed: int = 9487, reward: float = 1., agent_player: Player = Player.TOP_LEFT, render_mode: Optional[str] = None, opponent_policy=None):
+                 cube_layer: int = 3, seed: int = 9487, reward: float = 1., agent_player: Player = Player.TOP_LEFT, render_mode: Optional[str] = None, opponent_policy: str = "random"):
         super(EinsteinWuerfeltNichtEnv, self).__init__()
 
         # make sure the cube layer is legal
         # assert board_size % 2 == 1
         assert cube_layer < board_size - 1
 
-        self.board: np.ndarray = np.zeros((board_size, board_size), dtype=int)
+        self.board: np.ndarray = np.zeros(
+            (board_size, board_size), dtype=np.int16)
         cube_num: int = cube_layer * (cube_layer + 1) // 2
         print("Board size: ", board_size)
         print("Cube num: ", cube_num)
@@ -54,19 +63,22 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.action_space = gym.spaces.MultiDiscrete(
             [2, 3])  # 2 for chosing the large dice or the small dice ,3 possible moves
         self.observation_space = gym.spaces.Dict({
-            "board": gym.spaces.Box(low=-6, high=6, shape=(5, 5), dtype=np.int8),
-            "dice_roll": gym.spaces.Discrete(6)  # Dice values 1-6
+            "board": gym.spaces.Box(low=-cube_num, high=cube_num, shape=(5, 5), dtype=np.int16),
+            # Dice values 1-6
+            # turnaround for bug of sb3 when using one-hot encoding
+            # should be Discrete(cube_num, start=1)
+            "dice_roll": gym.spaces.Discrete(cube_num, start=1)
         })
         # start with the top left player
         self.current_player = Player.TOP_LEFT
         self.agent_player = agent_player
         self.reward = reward
-        if opponent_policy is not None:
-            self.load_opponent_policy(opponent_policy)
-        np.random.seed(seed)
+        # make sure the opponent policy is legal
+        assert opponent_policy is not None
+        self.load_opponent_policy(opponent_policy)
 
         # Setup the game
-        self.reset()
+        self.reset(seed=seed)
 
         # Rendering
         self.render_mode = render_mode
@@ -79,7 +91,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.history = []
 
     def roll_dice(self):
-        self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
+        # self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
+        self.dice_roll = self.observation_space["dice_roll"].sample()
 
     def setup_game(self):
         # Setting up the initial positions of the cubes for both players
@@ -108,7 +121,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             if cube_to_move_index is not None:
                 self.execute_move(cube_to_move_index, opponent_action[1])
             if self.check_win():
-                return self.board, -self.reward, True, {
+                return {"board": self.board,
+                        "dice_roll": self.dice_roll}, -self.reward, True, {
                     "message": "You lost!"}
 
             # Switch turn
@@ -209,13 +223,23 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             self.board[x, y] = cube  # Place cube in new position
             self.cube_pos[cube_index] = (x, y)  # Update cube_pos
 
-    def load_opponent_policy(self, opponent_policy):
+    def load_opponent_policy(self, opponent_policy: str):
         """Load the opponent policy"""
-        pass
+        if opponent_policy is "random":
+            self.opponent_policy = "random"
+        else:
+            self.opponent_policy = A2C.load(opponent_policy)
 
     def opponent_action(self) -> np.ndarray:
         # currently the opponent is a random agent
-        return self.action_space.sample()
+        if self.opponent_policy is "random":
+            return self.action_space.sample()
+        else:
+            # turn the board upside down and negate the board for the opponent
+            # This makes the policy of both player consistent
+            action, _state = self.opponent_policy.predict({"board": np.rot90(-self.board, 2),
+                                                           "dice_roll": self.dice_roll})
+        return action
 
     def switch_player(self):
         self.current_player = Player.BOTTOM_RIGHT if self.current_player == Player.TOP_LEFT else Player.TOP_LEFT
@@ -427,7 +451,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         # Check for win condition
         if self.check_win():
-            return self.board, self.reward, True, {
+            return {"board": self.board,
+                    "dice_roll": self.dice_roll}, self.reward, True, False, {
                 "message": "You won!"}
 
         # Switch turn
@@ -444,7 +469,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         if cube_to_move_index is not None:
             self.execute_move(cube_to_move_index, opponent_action[1])
         if self.check_win():
-            return self.board, -self.reward, True, {
+            return {"board": self.board,
+                    "dice_roll": self.dice_roll}, -self.reward, True, False, {
                 "message": "You lost!"}
 
         # Switch turn
@@ -453,12 +479,15 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.roll_dice()
 
         return {"board": self.board,
-                "dice_roll": self.dice_roll}, 0, False, {}
+                "dice_roll": self.dice_roll}, 0, False, False, {}
 
-    def reset(self):
+    def reset(self, seed: Optional[int] = None):
         self.current_player = Player.TOP_LEFT
+        np.random.seed(seed)
+        self.action_space.seed(seed)
         self.setup_game()
-        return {"board": self.board, "dice_roll": self.dice_roll}
+        return {"board": self.board,
+                "dice_roll": self.dice_roll}, {}
 
     def render(self):
         # Render the environment to the screen
@@ -479,18 +508,20 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             pygame.init()
             if self.render_mode == "human" and self.screen is None:
                 pygame.display.init()
-                self.screen = pygame.display.set_mode((500, 500))
+                self.screen = pygame.display.set_mode(
+                    (VIEWPORT_SIZE, VIEWPORT_SIZE + FONT_SIZE))
                 pygame.display.set_caption("Einstein Wuerfelt Nicht")
             if self.clock is None:
                 self.clock = pygame.time.Clock()
 
-            self.surf = pygame.Surface((VIEWPORT_SIZE, VIEWPORT_SIZE))
+            self.surf = pygame.Surface(
+                (VIEWPORT_SIZE, VIEWPORT_SIZE + FONT_SIZE))
             # draw the board
             self.surf.fill((211, 179, 104))
             font = pygame.font.SysFont("Arial", FONT_SIZE)
             dice_num = font.render(
-                f"d: {str(self.dice_roll)}", True, (0, 0, 0))
-            self.surf.blit(dice_num, (0, 0))
+                f"dice: {str(self.dice_roll)}", True, (0, 0, 0))
+            self.surf.blit(dice_num, (0, VIEWPORT_SIZE))
 
             line_width = VIEWPORT_SIZE // self.board.shape[0]
 
@@ -499,7 +530,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                               i * line_width, (0, 0, 0))
                 gfxdraw.vline(self.surf, i *
                               line_width, 0, VIEWPORT_SIZE, (0, 0, 0))
-
+            # last line at the bottom
+            gfxdraw.hline(self.surf, 0, VIEWPORT_SIZE,
+                          VIEWPORT_SIZE, (0, 0, 0))
             # draw the cubes
             for i in range(self.cube_pos.shape[0]):
                 if self.cube_pos.mask[i][0] != True:
@@ -524,7 +557,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 assert self.screen is not None
                 self.screen.blit(self.surf, (0, 0))
                 pygame.event.pump()
-                self.clock.tick(FPS)
+                self.clock.tick(self.metadata["render_fps"])
                 pygame.display.flip()
             elif self.render_mode == "rgb_array":
                 return np.transpose(
@@ -553,7 +586,7 @@ if __name__ == "__main__":
         # env.render()
         states.append(env.render())
         action = env.action_space.sample()
-        obs, reward, done, info = env.step(action)
+        obs, reward, done, truncated, info = env.step(action)
         if done:
             break
 
