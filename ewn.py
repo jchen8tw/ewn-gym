@@ -7,6 +7,8 @@ from PIL import Image
 import pygame
 from pygame import gfxdraw
 
+import pdb
+
 
 VIEWPORT_SIZE = 500
 FPS = 1
@@ -213,6 +215,129 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
     def switch_player(self):
         self.current_player = Player.BOTTOM_RIGHT if self.current_player == Player.TOP_LEFT else Player.TOP_LEFT
+    
+    """
+    helper functions
+    """
+    def get_opponent_player(self, player):
+        return Player.BOTTOM_RIGHT if player == Player.TOP_LEFT else Player.TOP_LEFT
+
+    def set_dice_roll(self, roll):
+        self.dice_roll = roll
+
+    def evaluate(self):
+        # Check if the agent player has won or lost
+        if self.agent_player == Player.TOP_LEFT:
+            if self.board[-1, -1] > 0 or not np.any(self.board < 0):  # Agent player wins
+                return 1
+            if self.board[0, 0] < 0 or not np.any(self.board > 0):  # Agent player loses
+                return -1
+
+        elif self.agent_player == Player.BOTTOM_RIGHT:
+            if self.board[0, 0] < 0 or not np.any(self.board > 0):  # Agent player wins
+                return 1
+            if self.board[-1, -1] > 0 or not np.any(self.board < 0):  # Agent player loses
+                return -1
+
+        return 0  # Game is still ongoing or no clear win/loss for agent player
+
+    def get_cube_legal_moves(self, cube_pos_index):
+        cube_legal_moves = []
+        pos = self.cube_pos[cube_pos_index]
+        x, y = pos[0], pos[1]
+
+        cube = self.board[x, y]  # Get cube number
+
+        assert cube != 0  # should be a cube not an empty cell
+        
+        for action in range(3):
+            # Determine new position based on action
+            if cube > 0:  # TOP_LEFT player
+                if action == 0:
+                    y += 1   # move right
+                elif action == 1:
+                    x += 1   # move down
+                elif action == 2:
+                    x += 1
+                    y += 1  # move diagonal down-right
+            else:  # BOTTOM_RIGHT player
+                if action == 0:
+                    y -= 1   # move left
+                elif action == 1:
+                    x -= 1   # move up
+                elif action == 2:
+                    x -= 1
+                    y -= 1  # move diagonal up-left
+
+            # Check if move is within the board
+            if 0 <= x < self.board.shape[0] and 0 <= y < self.board.shape[1]:
+                cube_legal_moves.append([0, action])
+        return cube_legal_moves
+
+    def get_legal_moves(self, player):
+        legal_moves = []
+
+        # Adjust dice roll for player's cube numbers (positive for TOP_LEFT,
+        # negative for BOTTOM_RIGHT)
+        cube_pos_index: int = self.dice_roll - \
+            1 if self.current_player == Player.TOP_LEFT else -self.dice_roll
+
+        # Check if there is a cube to move
+        if self.cube_pos.mask[cube_pos_index][0] == False:
+            cube_legal_moves = self.get_cube_legal_moves(cube_pos_index)
+            legal_moves.extend(cube_legal_moves)
+            return legal_moves
+        else:
+            # Check if there is a larger cube to move
+            if self.current_player == Player.TOP_LEFT:
+                for i in range(cube_pos_index + 1,
+                               self.cube_pos.shape[0] // 2):
+                    if self.cube_pos.mask[i][0] == False:
+                        cube_legal_moves = self.get_cube_legal_moves(i)
+                        legal_moves.extend(cube_legal_moves)
+                        break
+            else:
+                for i in range(cube_pos_index - 1, -
+                               (self.cube_pos.shape[0] // 2 + 1), -1):
+                    if self.cube_pos.mask[i][0] == False:
+                        cube_legal_moves = self.get_cube_legal_moves(i)
+                        legal_moves.extend(cube_legal_moves)
+                        break
+
+            # Check if there is a smaller cube to move
+            if self.current_player == Player.TOP_LEFT:
+                for i in range(cube_pos_index - 1, -1, -1):
+                    if self.cube_pos.mask[i][0] == False:
+                        cube_legal_moves = self.get_cube_legal_moves(i)
+                        legal_moves.extend(cube_legal_moves)
+                        break
+            else:
+                for i in range(cube_pos_index + 1, 0):
+                    if self.cube_pos.mask[i][0] == False:
+                        cube_legal_moves = self.get_cube_legal_moves(i)
+                        legal_moves.extend(cube_legal_moves)
+                        break
+
+            return legal_moves
+
+    def make_move(self, cube_index: int, action: np.ndarray):
+        
+        # Determine the cube to move based on the dice roll
+        cube_to_move_index = self.find_cube_to_move(action[0] == 1)
+
+        # Execute the move
+        if cube_to_move_index is not None:
+            self.execute_move(cube_to_move_index, action[1])
+        
+        #self.history = pass
+
+    def undo_move(self):
+        pass
+
+
+    """
+    helper functions end
+    """
 
     def step(self, action: np.ndarray):
 
@@ -340,10 +465,11 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 if __name__ == "__main__":
     # Testing the environment setup
     env = EinsteinWuerfeltNichtEnv(
-        render_mode="rgb_array",
-        # render_mode="human",
-        cube_layer=1,
-        board_size=3)
+        render_mode="ansi",
+        #render_mode="rgb_array",
+        #render_mode="human",
+        cube_layer=3,
+        board_size=5)
     obs = env.reset()
     states = []
     while True:
