@@ -332,6 +332,14 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         # Determine the cube to move based on the dice roll
         cube_to_move_index = self.find_cube_to_move(action[0] == 1)
         
+        """
+        if cube_to_move_index is None:
+            print('===cube_to_move_index is None===')
+            print('board')
+            print(self.board)
+            print(f'dice: {self.dice_roll}')
+            print(f'action: {action}')
+        """
         if cube_to_move_index is None:
             self.history.append(None)
             return
