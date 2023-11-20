@@ -59,8 +59,6 @@ if __name__ == "__main__":
     num_simulations = 1000
     win_count = 0
 
-    print('max depth = 9')
-
     for seed in tqdm(range(num_simulations)):
         # Testing the environment setup
         env = EinsteinWuerfeltNichtEnv(
@@ -71,7 +69,7 @@ if __name__ == "__main__":
             board_size=5,
             seed=seed
             )
-        agent = ExpectiminimaxAgent(max_depth=9)
+        agent = ExpectiminimaxAgent(max_depth=3)
         obs, _  = env.reset()
         states = []
 

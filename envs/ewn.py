@@ -268,8 +268,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 return -1
         
         board_height, board_width = self.board.shape
-
-        # Initialize the score
         score = 0
 
         # Calculate the distance of each player's pieces to the opposite corner
@@ -288,7 +286,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         piece_difference = top_left_pieces - bottom_right_pieces
         some_factor = 1  # This is a parameter that might need adjustment
         score += piece_difference * some_factor
-
+        
         # Return a positive score for TOP_LEFT player, and negative for BOTTOM_RIGHT
         return score if self.agent_player == Player.TOP_LEFT else -score
 
