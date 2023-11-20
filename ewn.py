@@ -74,6 +74,10 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.clock = None
         self.surf = None
 
+
+        # Move history
+        self.history = []
+
     def roll_dice(self):
         self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
 
@@ -219,7 +223,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
     """
     helper functions
     """
-    def get_opponent_player(self, player):
+    def get_opponent(self, player):
         return Player.BOTTOM_RIGHT if player == Player.TOP_LEFT else Player.TOP_LEFT
 
     def set_dice_roll(self, roll):
@@ -239,7 +243,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             if self.board[-1, -1] > 0 or not np.any(self.board < 0):  # Agent player loses
                 return -1
 
-        return 0  # Game is still ongoing or no clear win/loss for agent player
+        return np.random.randint(3)  # Game is still ongoing or no clear win/loss for agent player
 
     def get_cube_legal_moves(self, cube_pos_index):
         cube_legal_moves = []
@@ -282,6 +286,10 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         cube_pos_index: int = self.dice_roll - \
             1 if self.current_player == Player.TOP_LEFT else -self.dice_roll
 
+        print('cube_pos_index', cube_pos_index)
+        print('board', self.board)
+        print(self.cube_pos.mask[cube_pos_index][0])
+
         # Check if there is a cube to move
         if self.cube_pos.mask[cube_pos_index][0] == False:
             cube_legal_moves = self.get_cube_legal_moves(cube_pos_index)
@@ -320,21 +328,82 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
             return legal_moves
 
-    def make_move(self, cube_index: int, action: np.ndarray):
+    def make_move(self, action: np.ndarray):
         
         # Determine the cube to move based on the dice roll
         cube_to_move_index = self.find_cube_to_move(action[0] == 1)
-
-        # Execute the move
-        if cube_to_move_index is not None:
-            self.execute_move(cube_to_move_index, action[1])
         
-        #self.history = pass
+        # Find cube's current position
+        pos = self.cube_pos[cube_to_move_index]
+        x, y = pos[0], pos[1]
+        orig_pos = (x, y)
+
+        cube = self.board[x, y]  # Get cube number
+
+        assert cube != 0  # should be a cube not an empty cell
+
+        # Determine new position based on action
+        if cube > 0:  # TOP_LEFT player
+            if action[1] == 0:
+                y += 1   # move right
+            elif action[1] == 1:
+                x += 1   # move down
+            elif action[1] == 2:
+                x += 1
+                y += 1  # move diagonal down-right
+        else:  # BOTTOM_RIGHT player
+            if action[1] == 0:
+                y -= 1   # move left
+            elif action[1] == 1:
+                x -= 1   # move up
+            elif action[1] == 2:
+                x -= 1
+                y -= 1  # move diagonal up-left
+
+        # Check if move is within the board
+        if 0 <= x < self.board.shape[0] and 0 <= y < self.board.shape[1]:
+            # Perform move and capture if necessary
+            self.board[pos[0], pos[1]] = 0  # Remove cube from current position
+            remove_cube_index = None
+            if self.board[x, y] != 0:
+                remove_cube_index = self.board[x, y] - \
+                    1 if self.board[x, y] > 0 else self.board[x, y]
+                remove_cube = self.board[x, y]
+                # Remove cube from cube_pos
+                self.cube_pos[remove_cube_index] = np.ma.masked
+            self.board[x, y] = cube  # Place cube in new position
+
+            if remove_cube_index is None:
+                remove_cube = None
+
+            self.history.append((cube_to_move_index, cube, orig_pos, (x, y), remove_cube_index, remove_cube))
+            
+            self.cube_pos[cube_to_move_index] = (x, y)  # Update cube_pos
 
     def undo_move(self):
-        pass
+        if not self.history:
+            return
+        
+        #print('orig board')
+        #print(self.board)
+        #print(self.history[-1])
 
+        # Retrieve the last move
+        last_move = self.history.pop()
+        cube_to_move_index, cube_to_move, original_pos, new_pos, remove_cube_index, remove_cube = last_move
 
+        # Restore the cube to its original position
+        self.board[new_pos[0], new_pos[1]] = 0  # Clear new position
+        self.board[original_pos[0], original_pos[1]] = cube_to_move  # Restore cube to original position
+        self.cube_pos[cube_to_move_index] = original_pos  # Update cube_pos
+
+        # If a cube was captured, restore it
+        if remove_cube_index is not None:
+            self.cube_pos[remove_cube_index] = new_pos
+            self.board[new_pos[0], new_pos[1]] = remove_cube  # Restore captured cube
+
+        #print('after undo board')
+        #print(self.board)
     """
     helper functions end
     """
