@@ -21,17 +21,21 @@ register(
 my_config = {
     "run_id": "example",
 
-    "algorithm": A2C,
+    "algorithm": PPO,
     "policy_network": "MultiInputPolicy",
-    "save_path": "models/sample_model2",
+    "save_path": "models/5x5PPO",
 
     "epoch_num": 5,
+    "cube_layer": 3,
+    "board_size": 5,
     # "timesteps_per_epoch": 100,
-    "timesteps_per_epoch": 50000,
+    # "timesteps_per_epoch": 100000,
+    "timesteps_per_epoch": 20000,
     "eval_episode_num": 20,
-    "learning_rate": 0.0002051234174866298,
-    # "batch_size": 64,
-    "n_steps": 1,
+    # "learning_rate": 0.0002051234174866298,
+    "learning_rate": 3e-4,
+    "batch_size": 8,
+    # "n_steps": 1,
     "policy_kwargs": dict(activation_fn=th.nn.Tanh,
                           #   net_arch=[dict(pi=[128, 64, 64], vf=[128, 64, 64])]
                           )
@@ -39,7 +43,10 @@ my_config = {
 
 
 def make_env():
-    env = gym.make('EWN-v0')
+    env = gym.make(
+        'EWN-v0',
+        cube_layer=my_config["cube_layer"],
+        board_size=my_config["board_size"])
     return env
 
 
@@ -64,22 +71,22 @@ def train(env, model, config):
         print(config["run_id"])
         print("Epoch: ", epoch)
         avg_score = 0
-        reward = 0
+        reward = []
         reward_list = []
         for seed in range(config["eval_episode_num"]):
-            done = False
+            done = [False]
 
             # Set seed using old Gym API
             env.seed(seed)
             obs = env.reset()
 
             # Interact with env using old Gym API
-            while not done:
+            while not done[0]:
                 action, _state = model.predict(obs, deterministic=True)
                 obs, reward, done, info = env.step(action)
 
-            avg_score += reward / config["eval_episode_num"]
-            reward_list.append(reward)
+            avg_score += reward[0] / config["eval_episode_num"]
+            reward_list.append(reward[0])
 
         print("Avg_score:  ", avg_score)
         print("Reward_list:  ", reward_list)
@@ -90,10 +97,10 @@ def train(env, model, config):
         #      "avg_score": avg_score}
         # )
 
-        # Save best model
-        if current_best < avg_score:
+        # Save best model with highest win rate
+        if current_best < (avg_score + 1) / 2:
             print("Saving Model")
-            current_best = avg_score
+            current_best = (avg_score + 1) / 2
             save_path = config["save_path"]
             model.save(f"{save_path}/{epoch}")
 
@@ -110,8 +117,8 @@ if __name__ == "__main__":
     #     # id=my_config["run_id"]
     # )
 
-    env = DummyVecEnv([make_env])
-    # env = SubprocVecEnv([make_env] * 8)
+    # env = DummyVecEnv([make_env])
+    env = SubprocVecEnv([make_env] * 8)
     # print(env.get_attr("illegal_move_reward"))
 
     # Create model from loaded config and train
@@ -120,8 +127,8 @@ if __name__ == "__main__":
         my_config["policy_network"],
         env,
         # verbose=1,
-        # batch_size=my_config["batch_size"],
-        n_steps=my_config["n_steps"],
+        batch_size=my_config["batch_size"],
+        # n_steps=my_config["n_steps"],
         learning_rate=my_config["learning_rate"],
         policy_kwargs=my_config["policy_kwargs"],
         # tensorboard_log=my_config["run_id"]
