@@ -312,8 +312,29 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 return -1
         
         board_height, board_width = self.board.shape
+        board_length = max(board_height, board_width)
         score = 0
+        min_dist_positive, min_dist_negative = float('inf'), float('inf')
+        remaining_cubes_positive, remaining_cubes_negative = 0, 0
+        for i in range(board_height):
+            for j in range(board_width):
+                if self.board[i, j] > 0:  # Pieces of TOP_LEFT player
+                    curr_dist = max((board_height - 1 - i), (board_width - 1 - j))
+                    min_dist_positive = min(min_dist_positive, curr_dist)
+                    remaining_cubes_positive += 1
+                elif self.board[i, j] < 0:  # Pieces of BOTTOM_RIGHT player
+                    curr_dist = max((board_height - 1 - i), (board_width - 1 - j))
+                    min_dist_negative = min(min_dist_negative, curr_dist)
+                    remaining_cubes_negative += 1
+        
+        if self.agent_player == Player.TOP_LEFT:
+            score += (board_length - min_dist_positive) * (1 / remaining_cubes_positive)
+            score -= (board_length - min_dist_negative) * (1 / remaining_cubes_negative)
+        elif self.agent_player == Player.BOTTOM_RIGHT:
+            score -= (board_length - min_dist_positive) * (1 / remaining_cubes_positive)
+            score += (board_length - min_dist_negative) * (1 / remaining_cubes_negative)
 
+        """
         # Calculate the distance of each player's pieces to the opposite corner
         for i in range(board_height):
             for j in range(board_width):
@@ -323,13 +344,13 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 elif self.board[i, j] < 0:  # Pieces of BOTTOM_RIGHT player
                     # Subtract distance from top-left corner
                     score -= i + j
-
         # Consider the impact of the number of pieces remaining
         top_left_pieces = np.count_nonzero(self.board > 0)
         bottom_right_pieces = np.count_nonzero(self.board < 0)
         piece_difference = top_left_pieces - bottom_right_pieces
         some_factor = 1  # This is a parameter that might need adjustment
         score += piece_difference * some_factor
+        """
         
         # Return a positive score for TOP_LEFT player, and negative for BOTTOM_RIGHT
         return score if self.agent_player == Player.TOP_LEFT else -score
