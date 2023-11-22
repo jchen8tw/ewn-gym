@@ -112,8 +112,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 opponent_action[0] == 1)
 
             # Execute the move
-            if cube_to_move_index is not None:
-                self.execute_move(cube_to_move_index, opponent_action[1])
+            self.execute_move(cube_to_move_index, opponent_action[1])
             if self.check_win():
                 return {"board": self.board,
                         "dice_roll": self.dice_roll}, -self.reward, True, {
@@ -137,7 +136,39 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         return False
 
-    def find_cube_to_move(self, chose_larger: bool) -> int | None:
+    def find_near_cube(self, cube_pos_index: int,
+                       chose_larger: bool) -> int | None:
+        near_cube_pos_index: int | None = None
+        if chose_larger:
+            # Check if there is a larger cube to move
+            if self.current_player == Player.TOP_LEFT:
+                for i in range(cube_pos_index + 1,
+                               self.cube_pos.shape[0] // 2):
+                    if self.cube_pos.mask[i][0] == False:
+                        near_cube_pos_index = i
+                        break
+            else:
+                for i in range(cube_pos_index - 1, -
+                               (self.cube_pos.shape[0] // 2 + 1), -1):
+                    if self.cube_pos.mask[i][0] == False:
+                        near_cube_pos_index = i
+                        break
+        else:
+            # Check if there is a smaller cube to move
+            if self.current_player == Player.TOP_LEFT:
+                for i in range(cube_pos_index - 1, -1, -1):
+                    if self.cube_pos.mask[i][0] == False:
+                        near_cube_pos_index = i
+                        break
+            else:
+                for i in range(cube_pos_index + 1, 0):
+                    if self.cube_pos.mask[i][0] == False:
+                        near_cube_pos_index = i
+                        break
+
+        return near_cube_pos_index
+
+    def find_cube_to_move(self, chose_larger: bool) -> int:
         # Adjust dice roll for player's cube numbers (positive for TOP_LEFT,
         # negative for BOTTOM_RIGHT)
         cube_pos_index: int = self.dice_roll - \
@@ -147,38 +178,22 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         if self.cube_pos.mask[cube_pos_index][0] == False:
             return cube_pos_index
         else:
-            near_cube_pos_index = None
-            if chose_larger:
-
-                # Check if there is a larger cube to move
-                if self.current_player == Player.TOP_LEFT:
-                    for i in range(cube_pos_index + 1,
-                                   self.cube_pos.shape[0] // 2):
-                        if self.cube_pos.mask[i][0] == False:
-                            near_cube_pos_index = i
-                            break
-                else:
-                    for i in range(cube_pos_index - 1, -
-                                   (self.cube_pos.shape[0] // 2 + 1), -1):
-                        if self.cube_pos.mask[i][0] == False:
-                            near_cube_pos_index = i
-                            break
+            # Check if there is a cube to move
+            near_cube_pos_index = self.find_near_cube(
+                cube_pos_index, chose_larger)
+            if near_cube_pos_index is not None:
+                return near_cube_pos_index
             else:
-                # Check if there is a smaller cube to move
-                if self.current_player == Player.TOP_LEFT:
-                    for i in range(cube_pos_index - 1, -1, -1):
-                        if self.cube_pos.mask[i][0] == False:
-                            near_cube_pos_index = i
-                            break
-                else:
-                    for i in range(cube_pos_index + 1, 0):
-                        if self.cube_pos.mask[i][0] == False:
-                            near_cube_pos_index = i
-                            break
+                # ignore the chose_larger flag if there is no cube to move
+                near_cube_pos_index = self.find_near_cube(
+                    cube_pos_index, not chose_larger)
+                assert near_cube_pos_index is not None
+                return near_cube_pos_index
 
-            return near_cube_pos_index
-
-    def execute_move(self, cube_index: int, action: np.ndarray):
+    def execute_move(self, cube_index: int, action: np.ndarray,
+                     dry_run: bool = False) -> bool:
+        """ Execute the move of the cube and return whether the move is valid
+        """
         # Find cube's current position
         pos = self.cube_pos[cube_index]
         x, y = pos[0], pos[1]
@@ -207,6 +222,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         # Check if move is within the board
         if 0 <= x < self.board.shape[0] and 0 <= y < self.board.shape[1]:
+            # only check if the move is valid and don't perform the move
+            if dry_run:
+                return True
             # Perform move and capture if necessary
             self.board[pos[0], pos[1]] = 0  # Remove cube from current position
             if self.board[x, y] != 0:
@@ -216,6 +234,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 self.cube_pos[remove_cube_index] = np.ma.masked
             self.board[x, y] = cube  # Place cube in new position
             self.cube_pos[cube_index] = (x, y)  # Update cube_pos
+            return True
+        else:
+            return False
 
     def load_opponent_policy(self, opponent_policy: str):
         """Load the opponent policy"""
@@ -227,7 +248,14 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
     def opponent_action(self) -> np.ndarray:
         # currently the opponent is a random agent
         if self.opponent_policy is "random":
-            return self.action_space.sample()
+            while True:
+                # make sure the action is valid
+                action = self.action_space.sample()
+                if self.execute_move(self.find_cube_to_move(action[0] == 1),
+                                     action[1], dry_run=True):
+                    return action
+                else:
+                    continue
         else:
             # turn the board upside down and negate the board for the opponent
             # This makes the policy of both player consistent
@@ -244,8 +272,13 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         cube_to_move_index = self.find_cube_to_move(action[0] == 1)
 
         # Execute the move
-        if cube_to_move_index is not None:
-            self.execute_move(cube_to_move_index, action[1])
+        valid: bool = self.execute_move(cube_to_move_index, action[1])
+
+        # Check if the move is valid
+        if not valid:
+            return {"board": self.board,
+                    "dice_roll": self.dice_roll}, -self.reward, True, True, {
+                "message": "Invalid move for player! End the game."}
 
         # Check for win condition
         if self.check_win():
@@ -264,8 +297,14 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         cube_to_move_index = self.find_cube_to_move(opponent_action[0] == 1)
 
         # Execute the move
-        if cube_to_move_index is not None:
-            self.execute_move(cube_to_move_index, opponent_action[1])
+        valid = self.execute_move(cube_to_move_index, opponent_action[1])
+
+        # Check if the move is valid
+        if not valid:
+            return {"board": self.board,
+                    "dice_roll": self.dice_roll}, 0, True, True, {
+                "message": "Invalid move for opponent! End the game."}
+
         if self.check_win():
             return {"board": self.board,
                     "dice_roll": self.dice_roll}, -self.reward, True, False, {
