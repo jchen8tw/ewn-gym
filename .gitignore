@@ -163,3 +163,4 @@ cython_debug/
 *.gif
 models/
 .vscode/
+**/.DS_Store

@@ -45,3 +45,5 @@ while not done:
                 action = key_to_action[event.key]
                 obs, reward, done, truncate, info = env.step(action)
                 env.render()
+                print("Reward: {}, Done: {}, Truncate: {}".format(
+                    reward, done, truncate))
