@@ -106,6 +106,7 @@ if __name__ == "__main__":
                     win_count += 1
                 if info['message'] != 'You won!' and info['message'] != 'You lost!':
                     print(info['message'])
+                #print(info['message'])
                 break
             
             step_count += 1

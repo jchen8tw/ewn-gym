@@ -327,12 +327,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                     min_dist_negative = min(min_dist_negative, curr_dist)
                     remaining_cubes_negative += 1
         
-        if self.agent_player == Player.TOP_LEFT:
-            score += (board_length - min_dist_positive) * (1 / remaining_cubes_positive)
-            score -= (board_length - min_dist_negative) * (1 / remaining_cubes_negative)
-        elif self.agent_player == Player.BOTTOM_RIGHT:
-            score -= (board_length - min_dist_positive) * (1 / remaining_cubes_positive)
-            score += (board_length - min_dist_negative) * (1 / remaining_cubes_negative)
+        score += (board_length - min_dist_positive) * (1 / remaining_cubes_positive)
+        score -= (board_length - min_dist_negative) * (1 / remaining_cubes_negative)
 
         """
         # Calculate the distance of each player's pieces to the opposite corner
