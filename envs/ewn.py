@@ -301,15 +301,15 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         # Used when searching to the end game
         if self.agent_player == Player.TOP_LEFT:
             if self.board[-1, -1] > 0 or not np.any(self.board < 0):  # Agent player wins
-                return 1
+                return 10
             if self.board[0, 0] < 0 or not np.any(self.board > 0):  # Agent player loses
-                return -1
+                return -10
 
         elif self.agent_player == Player.BOTTOM_RIGHT:
             if self.board[0, 0] < 0 or not np.any(self.board > 0):  # Agent player wins
-                return 1
+                return 10
             if self.board[-1, -1] > 0 or not np.any(self.board < 0):  # Agent player loses
-                return -1
+                return -10
         
         board_height, board_width = self.board.shape
         board_length = max(board_height, board_width)
