@@ -91,6 +91,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
     def setup_game(self):
         # Setting up the initial positions of the cubes for both players
         cnt = 1
+        self.board.fill(0)
+        self.cube_pos.fill(0)
         for i in range(1, self.cube_layer + 1):
             for j in range(0, i):
                 self.board[j, i - j - 1] = cnt
@@ -174,6 +176,19 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         cube_pos_index: int = self.dice_roll - \
             1 if self.current_player == Player.TOP_LEFT else -self.dice_roll
 
+        # make sure the cube_pos and board are aligned
+        # for i in range(1, self.cube_pos.shape[0] // 2 + 1):
+        #     if self.cube_pos.mask[i - 1][0] == False:
+        #         assert self.board[self.cube_pos[i - 1][0],
+        #                           self.cube_pos[i - 1][1]] == i
+        #     else:
+        #         assert np.any(self.board == i) == False
+        #     if self.cube_pos.mask[-i][0] == False:
+        #         assert self.board[self.cube_pos[-i][0],
+        #                           self.cube_pos[-i][1]] == -i
+        #     else:
+        #         assert np.any(self.board == -i) == False
+
         # Check if there is a cube to move
         if self.cube_pos.mask[cube_pos_index][0] == False:
             return cube_pos_index
@@ -240,14 +255,14 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
     def load_opponent_policy(self, opponent_policy: str):
         """Load the opponent policy"""
-        if opponent_policy is "random":
+        if opponent_policy == "random":
             self.opponent_policy = "random"
         else:
             self.opponent_policy = A2C.load(opponent_policy)
 
     def opponent_action(self) -> np.ndarray:
         # currently the opponent is a random agent
-        if self.opponent_policy is "random":
+        if self.opponent_policy == "random":
             while True:
                 # make sure the action is valid
                 action = self.action_space.sample()
@@ -414,8 +429,8 @@ if __name__ == "__main__":
     env = EinsteinWuerfeltNichtEnv(
         render_mode="rgb_array",
         # render_mode="human",
-        cube_layer=1,
-        board_size=3)
+        cube_layer=3,
+        board_size=5)
     obs = env.reset()
     states = []
     while True:
@@ -425,6 +440,7 @@ if __name__ == "__main__":
         obs, reward, done, truncated, info = env.step(action)
         if done:
             break
+            # env.reset()
 
     images = [Image.fromarray(state) for state in states]
     images = iter(images)
