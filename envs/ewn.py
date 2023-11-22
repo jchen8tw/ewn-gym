@@ -255,6 +255,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
     def evaluate(self):
         # Check if the agent player has won or lost
+        # Used when searching to the end game
         if self.agent_player == Player.TOP_LEFT:
             if self.board[-1, -1] > 0 or not np.any(self.board < 0):  # Agent player wins
                 return 1
@@ -417,16 +418,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
     def make_simulated_move(self, player, action: np.ndarray):
         # Determine the cube to move based on the dice roll
         cube_to_move_index = self.find_cube_to_move_by_player(player, action[0] == 1)
-        """ 
-        if cube_to_move_index is None:
-            print('===cube_to_move_index is None===')
-            print('board')
-            print(self.board)
-            print(self.cube_pos)
-            print(f'dice: {self.dice_roll}')
-            print(f'action: {action}')
-            print('===')
-        """
+         
         if cube_to_move_index is None:
             self.history.append(None)
             return
@@ -478,6 +470,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             
             self.cube_pos[cube_to_move_index] = (x, y)  # Update cube_pos
         else:
+            # Illegal move
             self.history.append(None)
 
     def undo_simulated_move(self):

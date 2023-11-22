@@ -14,8 +14,6 @@ class ExpectiminimaxAgent:
             best_val = -float('inf')
             best_move = None
             legal_moves = env.get_legal_moves(player)
-            #print('agent player')
-            #print(f'dice: {env.dice_roll}, legal_moves: {legal_moves}')
             curr_dice_roll = env.dice_roll
             for move in legal_moves:
                 env.set_dice_roll(curr_dice_roll)
@@ -39,8 +37,6 @@ class ExpectiminimaxAgent:
             worst_val = float('inf')
             worst_move = None
             legal_moves = env.get_legal_moves(player)
-            #print('opponent player')
-            #print(f'dice: {env.dice_roll}, legal_moves: {legal_moves}')
             curr_dice_roll = env.dice_roll
             for move in legal_moves:
                 env.set_dice_roll(curr_dice_roll)
@@ -82,7 +78,6 @@ if __name__ == "__main__":
     win_count = 0
 
     for seed in tqdm(range(num_simulations)):
-        #print(f'===============seed: {seed}=============')
         # Testing the environment setup
         env = EinsteinWuerfeltNichtEnv(
             #render_mode="ansi",
@@ -101,13 +96,8 @@ if __name__ == "__main__":
         while True:
             # env.render()
             states.append(env.render())
-            #print(f'======step_count: {step_count}=======')
-            #print(f'dice: {env.dice_roll}')
-            #print('board')
-            #print(env.board)
             #action = env.action_space.sample()
             action = agent.choose_move(env)
-            #env.dice_roll = env.original_dice_roll
             env.set_dice_roll(obs['dice_roll'])
             obs, reward, done, trunc, info = env.step(action)
             if done:
