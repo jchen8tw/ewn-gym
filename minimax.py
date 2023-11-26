@@ -76,7 +76,7 @@ class ExpectiminimaxAgent:
 
 if __name__ == "__main__":
     
-    num_simulations = 1000
+    num_simulations = 100
     win_count = 0
 
     for seed in tqdm(range(num_simulations)):

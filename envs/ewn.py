@@ -451,26 +451,24 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             legal_moves.extend(cube_legal_moves)
             return legal_moves
         else:
-            """
             # Check if there is a larger cube to move
             near_cube_pos_index = self.find_near_cube(
-                cube_pos_index, True)
+                cube_pos_index, True, player)
             if near_cube_pos_index is not None:
-                cube_legal_directions = self.get_cube_legal_directions(cube_pos_index)
+                cube_legal_directions = self.get_cube_legal_directions(near_cube_pos_index)
                 cube_legal_moves = [[1, direction] for direction in cube_legal_directions]
                 legal_moves.extend(cube_legal_moves)
             
             # Check if there is a smaller cube to move
             near_cube_pos_index = self.find_near_cube(
-                cube_pos_index, False)
+                cube_pos_index, False, player)
             if near_cube_pos_index is not None:
-                cube_legal_directions = self.get_cube_legal_directions(cube_pos_index)
+                cube_legal_directions = self.get_cube_legal_directions(near_cube_pos_index)
                 cube_legal_moves = [[0, direction] for direction in cube_legal_directions]
                 legal_moves.extend(cube_legal_moves)
             
             return legal_moves
-            """
-
+        """
             # Check if there is a larger cube to move
             if player == Player.TOP_LEFT:
                 for i in range(cube_pos_index + 1,
@@ -502,6 +500,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                         break
 
             return legal_moves
+            """
 
     def make_simulated_move(self, player, action: np.ndarray):
         # Determine the cube to move based on the dice roll
