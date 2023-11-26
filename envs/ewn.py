@@ -145,11 +145,13 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         return False
 
     def find_near_cube(self, cube_pos_index: int,
-                       chose_larger: bool) -> int | None:
+            chose_larger: bool, player: Optional[Player] = None) -> int | None:
+        if player is None:
+            player = self.current_player
         near_cube_pos_index: int | None = None
         if chose_larger:
             # Check if there is a larger cube to move
-            if self.current_player == Player.TOP_LEFT:
+            if player == Player.TOP_LEFT:
                 for i in range(cube_pos_index + 1,
                                self.cube_pos.shape[0] // 2):
                     if self.cube_pos.mask[i][0] == False:
@@ -163,7 +165,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                         break
         else:
             # Check if there is a smaller cube to move
-            if self.current_player == Player.TOP_LEFT:
+            if player == Player.TOP_LEFT:
                 for i in range(cube_pos_index - 1, -1, -1):
                     if self.cube_pos.mask[i][0] == False:
                         near_cube_pos_index = i
@@ -176,11 +178,14 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         return near_cube_pos_index
 
-    def find_cube_to_move(self, chose_larger: bool) -> int:
+    def find_cube_to_move(self, chose_larger: bool, player: Optional[Player] = None) -> int:
+        if player == None:
+            player = self.current_player
+
         # Adjust dice roll for player's cube numbers (positive for TOP_LEFT,
         # negative for BOTTOM_RIGHT)
         cube_pos_index: int = self.dice_roll - \
-            1 if self.current_player == Player.TOP_LEFT else -self.dice_roll
+            1 if player == Player.TOP_LEFT else -self.dice_roll
 
         # make sure the cube_pos and board are aligned
         # for i in range(1, self.cube_pos.shape[0] // 2 + 1):
@@ -201,13 +206,13 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         else:
             # Check if there is a cube to move
             near_cube_pos_index = self.find_near_cube(
-                cube_pos_index, chose_larger)
+                cube_pos_index, chose_larger, player)
             if near_cube_pos_index is not None:
                 return near_cube_pos_index
             else:
                 # ignore the chose_larger flag if there is no cube to move
                 near_cube_pos_index = self.find_near_cube(
-                    cube_pos_index, not chose_larger)
+                    cube_pos_index, not chose_larger, player)
                 assert near_cube_pos_index is not None
                 return near_cube_pos_index
 
