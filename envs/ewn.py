@@ -399,22 +399,22 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
             return near_cube_pos_index
 
-    def update_position(self, x, y, action, cube):
+    def update_position(self, x, y, direction, cube):
         # Determine new position based on action and cube
         if cube > 0:
-            if action == 0:
+            if direction == 0:
                 y += 1
-            elif action == 1:
+            elif direction == 1:
                 x += 1
-            elif action == 2:
+            elif direction == 2:
                 x += 1
                 y += 1
         else:
-            if action == 0:
+            if direction == 0:
                 y -= 1
-            elif action == 1:
+            elif direction == 1:
                 x -= 1
-            elif action == 2:
+            elif direction == 2:
                 x -= 1;
                 y -= 1
         return x, y
@@ -436,8 +436,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         return cube_legal_directions
 
-    def get_legal_moves(self, player):
-        legal_moves = []
+    def get_legal_actions(self, player: Player):
+        legal_actions = []
 
         # Adjust dice roll for player's cube numbers (positive for TOP_LEFT,
         # negative for BOTTOM_RIGHT)
@@ -447,62 +447,29 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         # Check if there is a cube to move
         if self.cube_pos.mask[cube_pos_index][0] == False:
             cube_legal_directions = self.get_cube_legal_directions(cube_pos_index)
-            cube_legal_moves = [[0, direction] for direction in cube_legal_directions]
-            legal_moves.extend(cube_legal_moves)
-            return legal_moves
+            cube_legal_actions = [[0, direction] for direction in cube_legal_directions]
+            legal_actions.extend(cube_legal_actions)
+            return legal_actions
         else:
             # Check if there is a larger cube to move
             near_cube_pos_index = self.find_near_cube(
                 cube_pos_index, True, player)
             if near_cube_pos_index is not None:
                 cube_legal_directions = self.get_cube_legal_directions(near_cube_pos_index)
-                cube_legal_moves = [[1, direction] for direction in cube_legal_directions]
-                legal_moves.extend(cube_legal_moves)
+                cube_legal_actions = [[1, direction] for direction in cube_legal_directions]
+                legal_actions.extend(cube_legal_actions)
             
             # Check if there is a smaller cube to move
             near_cube_pos_index = self.find_near_cube(
                 cube_pos_index, False, player)
             if near_cube_pos_index is not None:
                 cube_legal_directions = self.get_cube_legal_directions(near_cube_pos_index)
-                cube_legal_moves = [[0, direction] for direction in cube_legal_directions]
-                legal_moves.extend(cube_legal_moves)
+                cube_legal_actions = [[0, direction] for direction in cube_legal_directions]
+                legal_actions.extend(cube_legal_actions)
             
-            return legal_moves
-        """
-            # Check if there is a larger cube to move
-            if player == Player.TOP_LEFT:
-                for i in range(cube_pos_index + 1,
-                               self.cube_pos.shape[0] // 2):
-                    if self.cube_pos.mask[i][0] == False:
-                        cube_legal_directions = self.get_cube_legal_directions(i, True)
-                        legal_moves.extend(cube_legal_directions)
-                        break
-            else:
-                for i in range(cube_pos_index - 1, -
-                               (self.cube_pos.shape[0] // 2 + 1), -1):
-                    if self.cube_pos.mask[i][0] == False:
-                        cube_legal_directions = self.get_cube_legal_directions(i, True)
-                        legal_moves.extend(cube_legal_directions)
-                        break
+            return legal_actions
 
-            # Check if there is a smaller cube to move
-            if player == Player.TOP_LEFT:
-                for i in range(cube_pos_index - 1, -1, -1):
-                    if self.cube_pos.mask[i][0] == False:
-                        cube_legal_directions = self.get_cube_legal_directions(i, False)
-                        legal_moves.extend(cube_legal_directions)
-                        break
-            else:
-                for i in range(cube_pos_index + 1, 0):
-                    if self.cube_pos.mask[i][0] == False:
-                        cube_legal_directions = self.get_cube_legal_directions(i, False)
-                        legal_moves.extend(cube_legal_directions)
-                        break
-
-            return legal_moves
-            """
-
-    def make_simulated_move(self, player, action: np.ndarray):
+    def make_simulated_action(self, player: Player, action: np.ndarray):
         # Determine the cube to move based on the dice roll
         cube_to_move_index = self.find_cube_to_move_by_player(player, action[0] == 1)
          
@@ -538,7 +505,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             # Illegal move
             self.history.append(None)
 
-    def undo_simulated_move(self):
+    def undo_simulated_action(self):
         if not self.history:
             return
 

@@ -12,51 +12,39 @@ class ExpectiminimaxAgent:
 
         if player == env.agent_player:  # Maximizing player
             best_val = -float('inf')
-            best_move = None
-            legal_moves = env.get_legal_moves(player)
+            best_action = None
+            legal_actions = env.get_legal_actions(player)
             curr_dice_roll = env.dice_roll
-            for move in legal_moves:
+            for action in legal_actions:
                 env.set_dice_roll(curr_dice_roll)
-                #print(f'agent curr move: {move}, dice: {env.dice_roll}')
-                #print('board before agent making move')
-                #print(env.board)
-                #print(f'agent dice: {env.dice_roll}')
-                env.make_simulated_move(player, move)
-                #print('board after agent making move')
-                #print(env.board)
+                env.make_simulated_action(player, action)
                 val, _ = self.expectiminimax(env, depth - 1, 'chance', player, alpha, beta)
-                env.undo_simulated_move()
+                env.undo_simulated_action()
                 if val > best_val:
                     best_val = val
-                    best_move = move
+                    best_action = action
                 alpha = max(alpha, best_val)
                 if beta <= alpha:
                     break
-            return best_val, best_move
+            return best_val, best_action
 
         elif player == env.get_opponent(env.agent_player):  # Minimizing player
             worst_val = float('inf')
-            worst_move = None
-            legal_moves = env.get_legal_moves(player)
+            worst_action = None
+            legal_actions = env.get_legal_actions(player)
             curr_dice_roll = env.dice_roll
-            for move in legal_moves:
+            for action in legal_actions:
                 env.set_dice_roll(curr_dice_roll)
-                #print(f'opponent curr move: {move}, dice: {env.dice_roll}')
-                #print('board before opponent making move')
-                #print(env.board)
-                #print(f'opponent dice: {env.dice_roll}')
-                env.make_simulated_move(player, move)
-                #print('board after opponent making move')
-                #print(env.board)
+                env.make_simulated_action(player, action)
                 val, _ = self.expectiminimax(env, depth - 1, 'chance', player, alpha, beta)
-                env.undo_simulated_move()
+                env.undo_simulated_action()
                 if val < worst_val:
                     worst_val = val
-                    worst_move = move
+                    worst_move = action
                 beta = min(beta, worst_val)
                 if beta <= alpha:
                     break
-            return worst_val, worst_move
+            return worst_val, worst_action
 
         elif player == 'chance':  # Chance node
             expected_val = 0
@@ -69,9 +57,9 @@ class ExpectiminimaxAgent:
                 expected_val += val / 6
             return expected_val, None
 
-    def choose_move(self, env):
-        _, chosen_move = self.expectiminimax(env, self.max_depth, env.agent_player, None, -float('inf'), float('inf'))
-        return chosen_move
+    def choose_action(self, env):
+        _, chosen_action = self.expectiminimax(env, self.max_depth, env.agent_player, None, -float('inf'), float('inf'))
+        return chosen_action
 
 
 if __name__ == "__main__":
@@ -99,7 +87,7 @@ if __name__ == "__main__":
             # env.render()
             states.append(env.render())
             #action = env.action_space.sample()
-            action = agent.choose_move(env)
+            action = agent.choose_action(env)
             env.set_dice_roll(obs['dice_roll'])
             obs, reward, done, trunc, info = env.step(action)
             if done:
