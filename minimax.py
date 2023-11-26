@@ -6,7 +6,7 @@ class ExpectiminimaxAgent:
     def __init__(self, max_depth):
         self.max_depth = max_depth
 
-    def expectiminimax(self, env, depth, player, parent, alpha, beta):
+    def expectiminimax(self, env: EinsteinWuerfeltNichtEnv, depth: int, player: Player, parent: Player | str, alpha: int, beta: int):
         if env.check_win() or depth == 0:
             return env.evaluate(), None
 
@@ -57,7 +57,7 @@ class ExpectiminimaxAgent:
                 expected_val += val / 6
             return expected_val, None
 
-    def choose_action(self, env):
+    def choose_action(self, env: EinsteinWuerfeltNichtEnv):
         _, chosen_action = self.expectiminimax(env, self.max_depth, env.agent_player, None, -float('inf'), float('inf'))
         return chosen_action
 

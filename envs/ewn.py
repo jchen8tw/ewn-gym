@@ -292,13 +292,12 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
     def switch_player(self):
         self.current_player = Player.BOTTOM_RIGHT if self.current_player == Player.TOP_LEFT else Player.TOP_LEFT
     
-    """
-    Minimax helper functions
-    """
-    def get_opponent(self, player):
+    
+
+    def get_opponent(self, player: Player):
         return Player.BOTTOM_RIGHT if player == Player.TOP_LEFT else Player.TOP_LEFT
 
-    def set_dice_roll(self, roll):
+    def set_dice_roll(self, roll: int):
         self.dice_roll = roll
 
     def evaluate(self):
@@ -338,6 +337,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         score -= (board_length - min_dist_negative) * (1 / remaining_cubes_negative)
 
         """
+        # Bad evaluation function
         # Calculate the distance of each player's pieces to the opposite corner
         for i in range(board_height):
             for j in range(board_width):
@@ -358,7 +358,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         # Return a positive score for TOP_LEFT player, and negative for BOTTOM_RIGHT
         return score if self.agent_player == Player.TOP_LEFT else -score
 
-    def update_position(self, x, y, direction, cube):
+    def update_position(self, x: int, y: int, direction: int, cube: int):
         # Determine new position based on action and cube
         if cube > 0:
             if direction == 0:
@@ -378,7 +378,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 y -= 1
         return x, y
 
-    def is_within_board(self, x, y):
+    def is_within_board(self, x: int, y: int):
         # Check if the position is within the board boundaries
         return 0 <= x < self.board.shape[0] and 0 <= y < self.board.shape[1]
 
@@ -483,6 +483,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         if remove_cube_index is not None:
             self.cube_pos[remove_cube_index] = new_pos
             self.board[new_pos[0], new_pos[1]] = remove_cube  # Restore captured cube
+
+
 
     def step(self, action: np.ndarray):
 
