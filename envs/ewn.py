@@ -357,47 +357,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         
         # Return a positive score for TOP_LEFT player, and negative for BOTTOM_RIGHT
         return score if self.agent_player == Player.TOP_LEFT else -score
-    
-    def find_cube_to_move_by_player(self, player, chose_larger: bool) -> int | None:
-        # Adjust dice roll for player's cube numbers (positive for TOP_LEFT,
-        # negative for BOTTOM_RIGHT)
-        cube_pos_index: int = self.dice_roll - \
-            1 if player == Player.TOP_LEFT else -self.dice_roll
-
-        # Check if there is a cube to move
-        if self.cube_pos.mask[cube_pos_index][0] == False:
-            return cube_pos_index
-        else:
-            near_cube_pos_index = None
-            if chose_larger:
-
-                # Check if there is a larger cube to move
-                if player == Player.TOP_LEFT:
-                    for i in range(cube_pos_index + 1,
-                                   self.cube_pos.shape[0] // 2):
-                        if self.cube_pos.mask[i][0] == False:
-                            near_cube_pos_index = i
-                            break
-                else:
-                    for i in range(cube_pos_index - 1, -
-                                   (self.cube_pos.shape[0] // 2 + 1), -1):
-                        if self.cube_pos.mask[i][0] == False:
-                            near_cube_pos_index = i
-                            break
-            else:
-                # Check if there is a smaller cube to move
-                if player == Player.TOP_LEFT:
-                    for i in range(cube_pos_index - 1, -1, -1):
-                        if self.cube_pos.mask[i][0] == False:
-                            near_cube_pos_index = i
-                            break
-                else:
-                    for i in range(cube_pos_index + 1, 0):
-                        if self.cube_pos.mask[i][0] == False:
-                            near_cube_pos_index = i
-                            break
-
-            return near_cube_pos_index
 
     def update_position(self, x, y, direction, cube):
         # Determine new position based on action and cube
@@ -471,7 +430,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
     def make_simulated_action(self, player: Player, action: np.ndarray):
         # Determine the cube to move based on the dice roll
-        cube_to_move_index = self.find_cube_to_move_by_player(player, action[0] == 1)
+        cube_to_move_index = self.find_cube_to_move(action[0] == 1, player)
          
         if cube_to_move_index is None:
             self.history.append(None)
