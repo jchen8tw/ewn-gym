@@ -633,7 +633,7 @@ if __name__ == "__main__":
     # Testing the environment setup
     env = EinsteinWuerfeltNichtEnv(
         render_mode="rgb_array",
-        #render_mode="human",
+        # render_mode="human",
         cube_layer=3,
         board_size=5)
     obs = env.reset()
