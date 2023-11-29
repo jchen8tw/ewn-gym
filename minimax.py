@@ -1,6 +1,6 @@
 from envs.ewn import EinsteinWuerfeltNichtEnv, Player
 from typing import Tuple, Optional
-
+import numpy as np
 from tqdm import tqdm
 
 class MinimaxEnv(EinsteinWuerfeltNichtEnv):
@@ -8,6 +8,8 @@ class MinimaxEnv(EinsteinWuerfeltNichtEnv):
                  cube_layer: int = 3, seed: int = 9487, reward: float = 1., agent_player: Player = Player.TOP_LEFT, render_mode: Optional[str] = None, opponent_policy: str = "random"):
         super().__init__(board_size=board_size,
                          cube_layer=cube_layer, seed=seed, reward=reward, agent_player=agent_player, render_mode=render_mode, opponent_policy=opponent_policy)
+
+        self.cube_num: int = cube_layer * (cube_layer + 1) // 2
 
     def evaluate(self):
         # Check if the agent player has won or lost
@@ -69,9 +71,10 @@ class MinimaxEnv(EinsteinWuerfeltNichtEnv):
 
 
 class ExpectiminimaxAgent:
-    def __init__(self, max_depth):
+    def __init__(self, max_depth, env):
         self.max_depth = max_depth
-
+        self.env = env
+    """
     def expectiminimax(self, env: EinsteinWuerfeltNichtEnv, depth: int, player: Player, parent: Player | str, alpha: int, beta: int):
         if env.check_win() or depth == 0:
             return env.evaluate(), None
@@ -126,9 +129,77 @@ class ExpectiminimaxAgent:
     def choose_action(self, env: EinsteinWuerfeltNichtEnv):
         _, chosen_action = self.expectiminimax(env, self.max_depth, env.agent_player, None, -float('inf'), float('inf'))
         return chosen_action
+    """ 
+    def expectiminimax(self, depth: int, player: Player, parent: Player | str, alpha: int, beta: int):
+        if self.env.check_win() or depth == 0:
+            return self.env.evaluate(), None
+
+        if player == self.env.agent_player:  # Maximizing player
+            best_val = -float('inf')
+            best_action = None
+            legal_actions = self.env.get_legal_actions(player)
+            curr_dice_roll = self.env.dice_roll
+            for action in legal_actions:
+                self.env.set_dice_roll(curr_dice_roll)
+                self.env.make_simulated_action(player, action)
+                val, _ = self.expectiminimax(depth - 1, 'chance', player, alpha, beta)
+                self.env.undo_simulated_action()
+                if val > best_val:
+                    best_val = val
+                    best_action = action
+                alpha = max(alpha, best_val)
+                if beta <= alpha:
+                    break
+            return best_val, best_action
+
+        elif player == self.env.get_opponent(self.env.agent_player):  # Minimizing player
+            worst_val = float('inf')
+            worst_action = None
+            legal_actions = self.env.get_legal_actions(player)
+            curr_dice_roll = self.env.dice_roll
+            for action in legal_actions:
+                self.env.set_dice_roll(curr_dice_roll)
+                self.env.make_simulated_action(player, action)
+                val, _ = self.expectiminimax(depth - 1, 'chance', player, alpha, beta)
+                self.env.undo_simulated_action()
+                if val < worst_val:
+                    worst_val = val
+                    worst_move = action
+                beta = min(beta, worst_val)
+                if beta <= alpha:
+                    break
+            return worst_val, worst_action
+
+        elif player == 'chance':  # Chance node
+            expected_val = 0
+            next_player = self.env.agent_player if parent == self.env.get_opponent(self.env.agent_player) else self.env.get_opponent(self.env.agent_player)
+            #print(f'chance node, next_player: {next_player}')
+            for dice_roll in range(1, 7):
+                self.env.set_dice_roll(dice_roll)
+                #print(f'set dice roll to {dice_roll}')
+                val, _ = self.expectiminimax(depth - 1, next_player, player, alpha, beta)
+                expected_val += val / 6
+            return expected_val, None
+
+    def restore_env_with_obs(self, obs):
+        self.env.dice_roll = obs['dice_roll']
+        self.env.board[:] = obs['board']
+        
+        for i in range(self.env.cube_num * 2):
+            self.env.cube_pos[i] = np.ma.masked
+        #print(self.env.cube_pos)
+        for i in range(self.env.board.shape[0]):
+            for j in range(self.env.board.shape[1]):
+                cube = self.env.board[i, j]
+                if cube > 0:
+                    self.env.cube_pos[cube - 1] = (i, j)
+                elif cube < 0:
+                    self.env.cube_pos[cube] = (i, j)
+        #print(self.env.cube_pos)
     
-    def predict(self, env: MinimaxEnv):
-        _, chosen_action = self.expectiminimax(env, self.max_depth, env.agent_player, None, -float('inf'), float('inf'))
+    def predict(self, obs):
+        self.restore_env_with_obs(obs)
+        _, chosen_action = self.expectiminimax(self.max_depth, self.env.agent_player, None, -float('inf'), float('inf'))
         return chosen_action
 
 
@@ -139,7 +210,19 @@ if __name__ == "__main__":
 
     for seed in tqdm(range(num_simulations)):
         # Testing the environment setup
-        env = MinimaxEnv(
+        env = EinsteinWuerfeltNichtEnv(
+                #render_mode="ansi",
+                #render_mode="rgb_array",
+                #render_mode="human",
+                cube_layer=3,
+                board_size=5,
+                seed=seed
+                )
+        #print(env.board)
+        #print(env.cube_pos)
+        #exit()
+        
+        minimax_env = MinimaxEnv(
             #render_mode="ansi",
             #render_mode="rgb_array",
             #render_mode="human",
@@ -147,19 +230,24 @@ if __name__ == "__main__":
             board_size=5,
             seed=seed
             )
-        exit()
-        agent = ExpectiminimaxAgent(max_depth=3)
+        agent = ExpectiminimaxAgent(max_depth=3, env=minimax_env)
+
         obs, _  = env.reset()
         states = []
-
+        
         step_count = 0
 
         while True:
             # env.render()
             states.append(env.render())
             #action = env.action_space.sample()
-            action = agent.choose_action(env)
-            env.set_dice_roll(obs['dice_roll'])
+            
+            #action = agent.choose_action(env)
+            #env.set_dice_roll(obs['dice_roll'])
+            
+
+            action = agent.predict(obs)
+
             obs, reward, done, trunc, info = env.step(action)
             if done:
                 #print(info)
