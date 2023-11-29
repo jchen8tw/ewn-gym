@@ -292,13 +292,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
     def switch_player(self):
         self.current_player = Player.BOTTOM_RIGHT if self.current_player == Player.TOP_LEFT else Player.TOP_LEFT
     
-    
-
-    def get_opponent(self, player: Player):
-        return Player.BOTTOM_RIGHT if player == Player.TOP_LEFT else Player.TOP_LEFT
-
-    def set_dice_roll(self, roll: int):
-        self.dice_roll = roll
+   
 
     def update_position(self, x: int, y: int, direction: int, cube: int):
         # Determine new position based on action and cube

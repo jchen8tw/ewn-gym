@@ -10,6 +10,12 @@ class MinimaxEnv(EinsteinWuerfeltNichtEnv):
                          cube_layer=cube_layer, seed=seed, reward=reward, agent_player=agent_player, render_mode=render_mode, opponent_policy=opponent_policy)
 
         self.cube_num: int = cube_layer * (cube_layer + 1) // 2
+    
+    def get_opponent(self, player: Player):
+        return Player.BOTTOM_RIGHT if player == Player.TOP_LEFT else Player.TOP_LEFT
+
+    def set_dice_roll(self, roll: int):
+        self.dice_roll = roll
 
     def evaluate(self):
         # Check if the agent player has won or lost
@@ -70,7 +76,7 @@ class MinimaxEnv(EinsteinWuerfeltNichtEnv):
         return score if self.agent_player == Player.TOP_LEFT else -score
 
 
-class ExpectiminimaxAgent:
+class ExpectiMinimaxAgent:
     def __init__(self, max_depth, env):
         self.max_depth = max_depth
         self.env = env
@@ -187,7 +193,6 @@ class ExpectiminimaxAgent:
         
         for i in range(self.env.cube_num * 2):
             self.env.cube_pos[i] = np.ma.masked
-        #print(self.env.cube_pos)
         for i in range(self.env.board.shape[0]):
             for j in range(self.env.board.shape[1]):
                 cube = self.env.board[i, j]
@@ -195,59 +200,39 @@ class ExpectiminimaxAgent:
                     self.env.cube_pos[cube - 1] = (i, j)
                 elif cube < 0:
                     self.env.cube_pos[cube] = (i, j)
-        #print(self.env.cube_pos)
     
     def predict(self, obs):
         self.restore_env_with_obs(obs)
         _, chosen_action = self.expectiminimax(self.max_depth, self.env.agent_player, None, -float('inf'), float('inf'))
         return chosen_action
 
-
 if __name__ == "__main__":
     
-    num_simulations = 1
-    win_count = 0
+    num_simulations = 1000
+    cube_layer = 3
+    board_size = 5
 
-    for seed in tqdm(range(num_simulations)):
-        # Testing the environment setup
-        env = EinsteinWuerfeltNichtEnv(
-                #render_mode="ansi",
-                #render_mode="rgb_array",
-                #render_mode="human",
-                cube_layer=3,
-                board_size=5,
-                seed=seed
-                )
-        #print(env.board)
-        #print(env.cube_pos)
-        #exit()
-        
-        minimax_env = MinimaxEnv(
+    env = EinsteinWuerfeltNichtEnv(
             #render_mode="ansi",
             #render_mode="rgb_array",
             #render_mode="human",
-            cube_layer=3,
-            board_size=5,
-            seed=seed
+            cube_layer=cube_layer,
+            board_size=board_size,
             )
-        agent = ExpectiminimaxAgent(max_depth=3, env=minimax_env)
+    
+    minimax_env = MinimaxEnv(cube_layer=cube_layer, board_size=board_size)
+    agent = ExpectiMinimaxAgent(max_depth=3, env=minimax_env)
 
-        obs, _  = env.reset()
+    win_count = 0
+    for seed in tqdm(range(num_simulations)):
+        obs, _  = env.reset(seed=seed)
         states = []
         
-        step_count = 0
-
         while True:
             # env.render()
             states.append(env.render())
             #action = env.action_space.sample()
-            
-            #action = agent.choose_action(env)
-            #env.set_dice_roll(obs['dice_roll'])
-            
-
             action = agent.predict(obs)
-
             obs, reward, done, trunc, info = env.step(action)
             if done:
                 #print(info)
@@ -257,8 +242,6 @@ if __name__ == "__main__":
                     print(info['message'])
                 #print(info['message'])
                 break
-            
-            step_count += 1
 
     print(f'win rate: {win_count / num_simulations * 100:.2f}%')
 
