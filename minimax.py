@@ -204,7 +204,7 @@ class ExpectiMinimaxAgent:
     def predict(self, obs):
         self.restore_env_with_obs(obs)
         _, chosen_action = self.expectiminimax(self.max_depth, self.env.agent_player, None, -float('inf'), float('inf'))
-        return chosen_action
+        return chosen_action, None
 
 if __name__ == "__main__":
     
@@ -232,7 +232,7 @@ if __name__ == "__main__":
             # env.render()
             states.append(env.render())
             #action = env.action_space.sample()
-            action = agent.predict(obs)
+            action, _state = agent.predict(obs)
             obs, reward, done, trunc, info = env.step(action)
             if done:
                 #print(info)
