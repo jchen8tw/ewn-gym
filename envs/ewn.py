@@ -281,7 +281,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             # turn the board upside down and negate the board for the opponent
             # This makes the policy of both player consistent
             action, _state = self.opponent_policy.predict({"board": np.rot90(-self.board, 2),
-                                                           "dice_roll": self.dice_roll})
+                                                           "dice_roll": self.dice_roll}, deterministic=True)
         return action
 
     def switch_player(self):
