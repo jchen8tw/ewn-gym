@@ -12,7 +12,7 @@ import pdb
 
 
 VIEWPORT_SIZE = 700
-FPS = 1
+FPS = 30
 FONT_SIZE = VIEWPORT_SIZE // 25
 
 
@@ -49,8 +49,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.board: np.ndarray = np.zeros(
             (board_size, board_size), dtype=np.int16)
         cube_num: int = cube_layer * (cube_layer + 1) // 2
-        #print("Board size: ", board_size)
-        #print("Cube num: ", cube_num)
+        # print("Board size: ", board_size)
+        # print("Cube num: ", cube_num)
         self.cube_layer: int = cube_layer
         # cube_pos[0] is the position of cube 1, cube_pos[1] is the position of
         # cube 2, etc.
@@ -85,7 +85,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.screen = None
         self.clock = None
         self.surf = None
-
 
         # History of moves
         self.history = []
@@ -145,7 +144,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         return False
 
     def find_near_cube(self, cube_pos_index: int,
-            chose_larger: bool, player: Optional[Player] = None) -> int | None:
+                       chose_larger: bool, player: Optional[Player] = None) -> int | None:
         if player is None:
             player = self.current_player
         near_cube_pos_index: int | None = None
@@ -178,8 +177,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         return near_cube_pos_index
 
-    def find_cube_to_move(self, chose_larger: bool, player: Optional[Player] = None) -> int:
-        if player == None:
+    def find_cube_to_move(self, chose_larger: bool,
+                          player: Optional[Player] = None) -> int:
+        if player is None:
             player = self.current_player
 
         # Adjust dice roll for player's cube numbers (positive for TOP_LEFT,
@@ -291,8 +291,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
     def switch_player(self):
         self.current_player = Player.BOTTOM_RIGHT if self.current_player == Player.TOP_LEFT else Player.TOP_LEFT
-    
-   
 
     def update_position(self, x: int, y: int, direction: int, cube: int):
         # Determine new position based on action and cube
@@ -310,7 +308,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             elif direction == 1:
                 x -= 1
             elif direction == 2:
-                x -= 1;
+                x -= 1
                 y -= 1
         return x, y
 
@@ -323,7 +321,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         pos = self.cube_pos[cube_pos_index]
         cube = self.board[pos[0], pos[1]]
         assert cube != 0  # should be a cube not an empty cell
-        
+
         for direction in range(3):
             x, y = self.update_position(pos[0], pos[1], direction, cube)
             if self.is_within_board(x, y):
@@ -341,8 +339,10 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         # Check if there is a cube to move
         if self.cube_pos.mask[cube_pos_index][0] == False:
-            cube_legal_directions = self.get_cube_legal_directions(cube_pos_index)
-            cube_legal_actions = [[0, direction] for direction in cube_legal_directions]
+            cube_legal_directions = self.get_cube_legal_directions(
+                cube_pos_index)
+            cube_legal_actions = [[0, direction]
+                                  for direction in cube_legal_directions]
             legal_actions.extend(cube_legal_actions)
             return legal_actions
         else:
@@ -350,28 +350,32 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             near_cube_pos_index = self.find_near_cube(
                 cube_pos_index, True, player)
             if near_cube_pos_index is not None:
-                cube_legal_directions = self.get_cube_legal_directions(near_cube_pos_index)
-                cube_legal_actions = [[1, direction] for direction in cube_legal_directions]
+                cube_legal_directions = self.get_cube_legal_directions(
+                    near_cube_pos_index)
+                cube_legal_actions = [[1, direction]
+                                      for direction in cube_legal_directions]
                 legal_actions.extend(cube_legal_actions)
-            
+
             # Check if there is a smaller cube to move
             near_cube_pos_index = self.find_near_cube(
                 cube_pos_index, False, player)
             if near_cube_pos_index is not None:
-                cube_legal_directions = self.get_cube_legal_directions(near_cube_pos_index)
-                cube_legal_actions = [[0, direction] for direction in cube_legal_directions]
+                cube_legal_directions = self.get_cube_legal_directions(
+                    near_cube_pos_index)
+                cube_legal_actions = [[0, direction]
+                                      for direction in cube_legal_directions]
                 legal_actions.extend(cube_legal_actions)
-            
+
             return legal_actions
 
     def make_simulated_action(self, player: Player, action: np.ndarray):
         # Determine the cube to move based on the dice roll
         cube_to_move_index = self.find_cube_to_move(action[0] == 1, player)
-         
+
         if cube_to_move_index is None:
             self.history.append(None)
             return
-        
+
         # Find cube's current position
         pos = self.cube_pos[cube_to_move_index]
         original_pos = (pos[0], pos[1])
@@ -392,10 +396,11 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 self.cube_pos[remove_cube_index] = np.ma.masked
             self.board[x, y] = cube  # Place cube in new position
             self.cube_pos[cube_to_move_index] = (x, y)  # Update cube_pos
-            
+
             if remove_cube_index is None:
                 remove_cube = None
-            self.history.append((cube_to_move_index, cube, original_pos, (x, y), remove_cube_index, remove_cube))
+            self.history.append(
+                (cube_to_move_index, cube, original_pos, (x, y), remove_cube_index, remove_cube))
         else:
             # Illegal move
             self.history.append(None)
@@ -412,15 +417,15 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         # Restore the cube to its original position
         self.board[new_pos[0], new_pos[1]] = 0  # Clear new position
-        self.board[original_pos[0], original_pos[1]] = cube_to_move  # Restore cube to original position
+        # Restore cube to original position
+        self.board[original_pos[0], original_pos[1]] = cube_to_move
         self.cube_pos[cube_to_move_index] = original_pos  # Update cube_pos
 
         # If a cube was captured, restore it
         if remove_cube_index is not None:
             self.cube_pos[remove_cube_index] = new_pos
-            self.board[new_pos[0], new_pos[1]] = remove_cube  # Restore captured cube
-
-
+            # Restore captured cube
+            self.board[new_pos[0], new_pos[1]] = remove_cube
 
     def step(self, action: np.ndarray):
 
