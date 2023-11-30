@@ -65,8 +65,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.observation_space = gym.spaces.Dict({
             "board": gym.spaces.Box(low=-cube_num, high=cube_num, shape=(board_size, board_size), dtype=np.int16),
             # Dice values 1-6
-            # turnaround for bug of sb3 when using one-hot encoding
             # should be Discrete(cube_num, start=1)
+            # turnaround for bug of sb3 when using one-hot encoding
             "dice_roll": gym.spaces.Discrete(cube_num + 1, start=1)
         })
         # start with the top left player
@@ -274,14 +274,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
     def opponent_action(self) -> np.ndarray:
         # currently the opponent is a random agent
         if self.opponent_policy == "random":
-            while True:
-                # make sure the action is valid
-                action = self.action_space.sample()
-                if self.execute_move(self.find_cube_to_move(action[0] == 1),
-                                     action[1], dry_run=True):
-                    return action
-                else:
-                    continue
+            legal_moves = self.get_legal_actions(self.current_player)
+            action_idx = np.random.randint(0, len(legal_moves))
+            action = np.array(legal_moves[action_idx])
         else:
             # turn the board upside down and negate the board for the opponent
             # This makes the policy of both player consistent
