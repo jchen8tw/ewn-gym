@@ -115,8 +115,6 @@ if __name__ == "__main__":
             if done:
                 if info['message'] == 'You won!':
                     win_count += 1
-                if info['message'] != 'You won!' and info['message'] != 'You lost!':
-                    win_count += 1
                 # print(info['message'])
                 break
 
