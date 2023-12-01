@@ -14,7 +14,8 @@ class ExpectiMinimaxAgent:
         if self.env.check_win() or depth == 0:
             return self.env.evaluate(), None
 
-        if player == self.env.agent_player:  # Maximizing player
+        # Maximizing player
+        if player == self.env.agent_player:
             best_val = -float('inf')
             best_action = None
             legal_actions = self.env.get_legal_actions(player)
@@ -32,7 +33,6 @@ class ExpectiMinimaxAgent:
                 if beta <= alpha:
                     break
             return best_val, best_action
-
         # Minimizing player
         elif player == self.env.get_opponent(self.env.agent_player):
             worst_val = float('inf')
@@ -52,15 +52,13 @@ class ExpectiMinimaxAgent:
                 if beta <= alpha:
                     break
             return worst_val, worst_action
-
-        elif player == 'chance':  # Chance node
+        # Chance node
+        elif player == 'chance':
             expected_val = 0
             next_player = self.env.agent_player if parent == self.env.get_opponent(
                 self.env.agent_player) else self.env.get_opponent(self.env.agent_player)
-            # print(f'chance node, next_player: {next_player}')
             for dice_roll in range(1, 7):
                 self.env.set_dice_roll(dice_roll)
-                # print(f'set dice roll to {dice_roll}')
                 val, _ = self.expectiminimax(
                     depth - 1, next_player, player, alpha, beta)
                 expected_val += val / 6
@@ -80,7 +78,7 @@ class ExpectiMinimaxAgent:
                 elif cube < 0:
                     self.env.cube_pos[cube] = (i, j)
 
-    def predict(self, obs):
+    def predict(self, obs, **kwargs):
         self.restore_env_with_obs(obs)
         _, chosen_action = self.expectiminimax(
             self.max_depth, self.env.agent_player, None, -float('inf'), float('inf'))
@@ -111,33 +109,16 @@ if __name__ == "__main__":
         states = []
 
         while True:
-            # env.render()
             states.append(env.render())
-            # action = env.action_space.sample()
             action, _state = agent.predict(obs)
             obs, reward, done, trunc, info = env.step(action)
             if done:
-                # print(info)
                 if info['message'] == 'You won!':
                     win_count += 1
                 if info['message'] != 'You won!' and info['message'] != 'You lost!':
-                    # print(info['message'])
                     win_count += 1
                 # print(info['message'])
                 break
 
     print(f'win rate: {win_count / num_simulations * 100:.2f}%')
 
-    """
-    images = [Image.fromarray(state) for state in states]
-    images = iter(images)
-    image = next(images)
-    image.save(
-        f"ewn.gif",
-        format="GIF",
-        save_all=True,
-        append_images=images,
-        loop=0,
-        duration=700,
-    )
-    """
