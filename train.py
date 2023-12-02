@@ -14,28 +14,31 @@ from stable_baselines3.common.env_util import make_vec_env
 warnings.filterwarnings("ignore")
 register(
     id='EWN-v0',
-    entry_point='envs:EinsteinWuerfeltNichtEnv'
+    # entry_point='envs:EinsteinWuerfeltNichtEnv'
+    entry_point='envs:MiniMaxHeuristicEnv'
 )
 
 # Set hyper params (configurations) for training
 my_config = {
     "run_id": "example",
 
-    "algorithm": PPO,
+    # "algorithm": PPO,
+    "algorithm": A2C,
     "policy_network": "MultiInputPolicy",
-    "save_path": "models/5x5PPO",
+    "save_path": "models/5x5",
 
-    "epoch_num": 5,
+    "epoch_num": 2,
     "cube_layer": 3,
     "board_size": 5,
     # "timesteps_per_epoch": 100,
-    # "timesteps_per_epoch": 100000,
-    "timesteps_per_epoch": 20000,
+    "timesteps_per_epoch": 700000,
+    # "timesteps_per_epoch": 20000,
     "eval_episode_num": 20,
     # "learning_rate": 0.0002051234174866298,
     "learning_rate": 3e-4,
     "batch_size": 8,
-    # "n_steps": 1,
+    "n_steps": 1,
+    "opponent_policy": "minimax",
     "policy_kwargs": dict(activation_fn=th.nn.Tanh,
                           #   net_arch=[dict(pi=[128, 64, 64], vf=[128, 64, 64])]
                           )
@@ -46,7 +49,8 @@ def make_env():
     env = gym.make(
         'EWN-v0',
         cube_layer=my_config["cube_layer"],
-        board_size=my_config["board_size"])
+        board_size=my_config["board_size"],
+        opponent_policy=my_config["opponent_policy"])
     return env
 
 
@@ -90,7 +94,7 @@ def train(env, model, config):
 
         print("Avg_score:  ", avg_score)
         print("Reward_list:  ", reward_list)
-        print("Win rate:  ", (avg_score + 1) / 2)
+        print("Win rate:  ", (avg_score + 10) / 20)
         print()
         # wandb.log(
         #     {"avg_highest": avg_highest,
@@ -123,14 +127,15 @@ if __name__ == "__main__":
 
     # Create model from loaded config and train
     # Note: Set verbose to 0 if you don't want info messages
-    model = my_config["algorithm"](
-        my_config["policy_network"],
-        env,
-        # verbose=1,
-        batch_size=my_config["batch_size"],
-        # n_steps=my_config["n_steps"],
-        learning_rate=my_config["learning_rate"],
-        policy_kwargs=my_config["policy_kwargs"],
-        # tensorboard_log=my_config["run_id"]
-    )
+    # model = my_config["algorithm"](
+    #     my_config["policy_network"],
+    #     env,
+    #     # verbose=1,
+    #     # batch_size=my_config["batch_size"],
+    #     n_steps=my_config["n_steps"],
+    #     learning_rate=my_config["learning_rate"],
+    #     policy_kwargs=my_config["policy_kwargs"],
+    #     # tensorboard_log=my_config["run_id"]
+    # )
+    model = A2C.load(f"{my_config['save_path']}/1", env=env)
     train(env, model, my_config)

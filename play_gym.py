@@ -8,6 +8,7 @@ import pygame
 warnings.filterwarnings("ignore")
 register(
     id='EWN-v0',
+    # entry_point='envs:MiniMaxHeuristicEnv'
     entry_point='envs:EinsteinWuerfeltNichtEnv'
 )
 
@@ -15,7 +16,7 @@ register(
 env = gym.make("EWN-v0", render_mode="human",
                cube_layer=3,
                board_size=5,
-               opponent_policy="models/sample_model/2")
+               opponent_policy="minimax")
 
 # Key mappings
 key_to_action = {
@@ -45,5 +46,5 @@ while not done:
                 action = key_to_action[event.key]
                 obs, reward, done, truncate, info = env.step(action)
                 env.render()
-                print("Reward: {}, Done: {}, Truncate: {}".format(
-                    reward, done, truncate))
+                print("Reward: {}, Done: {}, Truncate: {}, Info: {}".format(
+                    reward, done, truncate, info.get("message", "")))

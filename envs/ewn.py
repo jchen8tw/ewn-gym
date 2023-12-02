@@ -4,21 +4,14 @@ import numpy as np
 from enum import Enum
 from typing import Tuple, Optional
 from PIL import Image
-import pygame
-from pygame import gfxdraw
 from stable_baselines3 import A2C
-
-import pdb
+from classical_policies import ExpectiMinimaxAgent
+from constants import Player
 
 
 VIEWPORT_SIZE = 700
 FPS = 30
 FONT_SIZE = VIEWPORT_SIZE // 25
-
-
-class Player(Enum):
-    TOP_LEFT = 1
-    BOTTOM_RIGHT = 2
 
 
 class EinsteinWuerfeltNichtEnv(gym.Env):
@@ -48,7 +41,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         self.board: np.ndarray = np.zeros(
             (board_size, board_size), dtype=np.int16)
-        cube_num: int = cube_layer * (cube_layer + 1) // 2
+        self.cube_num: int = cube_layer * (cube_layer + 1) // 2
         # print("Board size: ", board_size)
         # print("Cube num: ", cube_num)
         self.cube_layer: int = cube_layer
@@ -57,17 +50,17 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         # cube_pos[-1], cube_pos[-2], etc. are the positions of the cubes of the
         # other player
         self.cube_pos = np.ma.zeros(
-            (cube_num * 2,), dtype=[("x", int), ("y", int)])
+            (self.cube_num * 2,), dtype=[("x", int), ("y", int)])
         self.dice_roll: int = 1
         # Define action and observation space
         self.action_space = gym.spaces.MultiDiscrete(
             [2, 3])  # 2 for chosing the large dice or the small dice ,3 possible moves
         self.observation_space = gym.spaces.Dict({
-            "board": gym.spaces.Box(low=-cube_num, high=cube_num, shape=(board_size, board_size), dtype=np.int16),
+            "board": gym.spaces.Box(low=-self.cube_num, high=self.cube_num, shape=(board_size, board_size), dtype=np.int16),
             # Dice values 1-6
             # should be Discrete(cube_num, start=1)
             # turnaround for bug of sb3 when using one-hot encoding
-            "dice_roll": gym.spaces.Discrete(cube_num + 1, start=1)
+            "dice_roll": gym.spaces.Discrete(self.cube_num + 1, start=1)
         })
         # start with the top left player
         self.current_player = Player.TOP_LEFT
@@ -264,10 +257,20 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         else:
             return False
 
-    def load_opponent_policy(self, opponent_policy: str):
+    def load_opponent_policy(self, opponent_policy: str, **policy_kwargs):
         """Load the opponent policy"""
         if opponent_policy == "random":
             self.opponent_policy = "random"
+        elif opponent_policy == "minimax":
+            # This solves the problem of circular import
+            from envs import MinimaxEnv
+            # max depth defaults to 3
+            max_depth: int = policy_kwargs.get("max_depth", 3)
+            minimax_env = MinimaxEnv(
+                cube_layer=self.cube_layer,
+                board_size=self.board.shape[0])
+            self.opponent_policy = ExpectiMinimaxAgent(
+                max_depth=max_depth, env=minimax_env)
         else:
             self.opponent_policy = A2C.load(opponent_policy)
 
@@ -278,6 +281,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             action_idx = np.random.randint(0, len(legal_moves))
             action = np.array(legal_moves[action_idx])
         else:
+            # both classical and sb3 policies are trained for the top left and followes the sb3 api
             # turn the board upside down and negate the board for the opponent
             # This makes the policy of both player consistent
             action, _state = self.opponent_policy.predict({"board": np.rot90(-self.board, 2),

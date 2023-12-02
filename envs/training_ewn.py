@@ -1,4 +1,5 @@
-from envs import EinsteinWuerfeltNichtEnv, Player, MinimaxEnv
+from envs import MinimaxEnv
+from constants import Player
 from typing import Tuple, Optional
 import numpy as np
 
@@ -21,13 +22,13 @@ class MiniMaxHeuristicEnv(MinimaxEnv):
                  agent_player: Player = Player.TOP_LEFT,
                  render_mode: Optional[str] = None,
                  opponent_policy: str = "random",
+                 # These two parameters are for reward shaping
                  illgal_move_reward: float = -1.0,
                  illegal_move_tolerance: int = 10,):
         # note that the original env reward is the goal reward
         super().__init__(board_size=board_size,
                          cube_layer=cube_layer, seed=seed, reward=goal_reward, agent_player=agent_player, render_mode=render_mode, opponent_policy=opponent_policy)
 
-        self.cube_num: int = cube_layer * (cube_layer + 1) // 2
         # The previous score of the agent player
         self.prev_score: float = self.evaluate()
         self.illegal_move_reward: float = illgal_move_reward

@@ -4,6 +4,7 @@ from stable_baselines3 import PPO, A2C
 # import plotly.graph_objects as go
 # import plotly.express as px
 import pandas as pd
+from tqdm import trange
 
 
 import numpy as np
@@ -19,7 +20,7 @@ def evaluation(env, model, render_last, eval_num=100):
     score = []
 
     # Run eval_num times rollouts
-    for seed in range(eval_num):
+    for seed in trange(eval_num):
         done = False
         # Set seed and reset env using Gymnasium API
         obs, info = env.reset(seed=seed)
@@ -53,8 +54,15 @@ def evaluation(env, model, render_last, eval_num=100):
 
 if __name__ == "__main__":
     # Change path name to load different models
-    model_path = "models/sample_model/2"
-    env = gym.make('EWN-v0')
+    model_path = "models/5x5/0"
+    env = gym.make(
+        'EWN-v0',
+        cube_layer=3,
+        board_size=5,
+        # opponent_policy="random",
+        opponent_policy="minimax",
+        # render_mode='human',
+    )
 
     # Load model with SB3
     # Note: Model can be loaded with arbitrary algorithm class for evaluation
