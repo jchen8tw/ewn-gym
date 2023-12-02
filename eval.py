@@ -16,8 +16,8 @@ register(
 )
 
 
-def evaluation(env, model, render_last, eval_num=100):
-    score = []
+def evaluation(env, model, render_last, eval_num=100) -> np.ndarray:
+    score = np.zeros(eval_num)
 
     # Run eval_num times rollouts
     for seed in trange(eval_num):
@@ -34,8 +34,9 @@ def evaluation(env, model, render_last, eval_num=100):
         # Render the last board state of each episode
         # print("Last board state:")
         # env.render()
-
-        score.append(reward)
+        # The episode number is same as the seed
+        episode = seed
+        score[episode] = reward
 
     # Render last rollout
     if render_last:
@@ -54,13 +55,13 @@ def evaluation(env, model, render_last, eval_num=100):
 
 if __name__ == "__main__":
     # Change path name to load different models
-    model_path = "models/5x5/0"
+    model_path = "models/5x5/4"
     env = gym.make(
         'EWN-v0',
         cube_layer=3,
         board_size=5,
-        # opponent_policy="random",
-        opponent_policy="minimax",
+        opponent_policy="random",
+        # opponent_policy="minimax",
         # render_mode='human',
     )
 
@@ -72,8 +73,9 @@ if __name__ == "__main__":
     eval_num = 1000
     score = evaluation(env, model, True, eval_num)
 
-    print("Avg_score:  ", np.sum(score) / eval_num)
-    print("Avg win rate:  ", (np.sum(score) / eval_num + 1) / 2)
+    print("Avg_score:  ", np.mean(score))
+    winrate: float = np.count_nonzero(score > 0) / eval_num
+    print("Avg win rate:  ", winrate)
     # print("Avg_highest:", np.sum(highest) / eval_num)
 
     print(f"Counts: (Total of {eval_num} rollouts)")

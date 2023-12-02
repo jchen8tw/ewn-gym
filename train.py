@@ -27,11 +27,11 @@ my_config = {
     "policy_network": "MultiInputPolicy",
     "save_path": "models/5x5",
 
-    "epoch_num": 2,
+    "epoch_num": 5,
     "cube_layer": 3,
     "board_size": 5,
     # "timesteps_per_epoch": 100,
-    "timesteps_per_epoch": 700000,
+    "timesteps_per_epoch": 200000,
     # "timesteps_per_epoch": 20000,
     "eval_episode_num": 20,
     # "learning_rate": 0.0002051234174866298,
@@ -76,13 +76,11 @@ def train(env, model, config):
         print("Epoch: ", epoch)
         avg_score = 0
         reward = []
-        reward_list = []
+        reward_list = np.zeros(config["eval_episode_num"])
         for seed in range(config["eval_episode_num"]):
             done = [False]
 
-            # Set seed using old Gym API
-            env.seed(seed)
-            obs = env.reset()
+            obs, info = env.reset(seed=seed)
 
             # Interact with env using old Gym API
             while not done[0]:
@@ -90,11 +88,15 @@ def train(env, model, config):
                 obs, reward, done, info = env.step(action)
 
             avg_score += reward[0] / config["eval_episode_num"]
-            reward_list.append(reward[0])
+            # append the last reward of first env in vec_env
+            episode = seed
+            reward_list[episode] = reward[0]
 
         print("Avg_score:  ", avg_score)
         print("Reward_list:  ", reward_list)
-        print("Win rate:  ", (avg_score + 10) / 20)
+        winrate: float = np.count_nonzero(
+            np.array(reward_list) > 0) / config["eval_episode_num"]
+        print("Win rate:  ", winrate)
         print()
         # wandb.log(
         #     {"avg_highest": avg_highest,
@@ -102,9 +104,9 @@ def train(env, model, config):
         # )
 
         # Save best model with highest win rate
-        if current_best < (avg_score + 1) / 2:
+        if current_best < winrate:
             print("Saving Model")
-            current_best = (avg_score + 1) / 2
+            current_best = winrate
             save_path = config["save_path"]
             model.save(f"{save_path}/{epoch}")
 
