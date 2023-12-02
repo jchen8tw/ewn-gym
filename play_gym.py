@@ -17,6 +17,7 @@ env = gym.make("EWN-v0", render_mode="human",
                cube_layer=3,
                board_size=5,
                opponent_policy="minimax")
+               #opponent_policy="models/5x5PPO/2")
 
 # Key mappings
 key_to_action = {
