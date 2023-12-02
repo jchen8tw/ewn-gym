@@ -25,7 +25,7 @@ my_config = {
     # "algorithm": PPO,
     "algorithm": A2C,
     "policy_network": "MultiInputPolicy",
-    "save_path": "models/5x5A2C_s",
+    "save_path": "models/5x5",
 
     "epoch_num": 5,
     "cube_layer": 3,
@@ -38,8 +38,7 @@ my_config = {
     "learning_rate": 3e-4,
     "batch_size": 8,
     "n_steps": 1,
-    #"opponent_policy": "minimax",
-    "opponent_policy": "random",
+    "opponent_policy": "minimax",
     "policy_kwargs": dict(activation_fn=th.nn.Tanh,
                           #   net_arch=[dict(pi=[128, 64, 64], vf=[128, 64, 64])]
                           )
@@ -124,21 +123,21 @@ if __name__ == "__main__":
     #     # id=my_config["run_id"]
     # )
 
-    #env = DummyVecEnv([make_env])
+    # env = DummyVecEnv([make_env])
     env = SubprocVecEnv([make_env] * 8)
     # print(env.get_attr("illegal_move_reward"))
 
     # Create model from loaded config and train
     # Note: Set verbose to 0 if you don't want info messages
-    model = my_config["algorithm"](
-        my_config["policy_network"],
-        env,
-        # verbose=1,
-        # batch_size=my_config["batch_size"],
-        n_steps=my_config["n_steps"],
-        learning_rate=my_config["learning_rate"],
-        policy_kwargs=my_config["policy_kwargs"],
-        # tensorboard_log=my_config["run_id"]
+    # model = my_config["algorithm"](
+    #     my_config["policy_network"],
+    #     env,
+    #     # verbose=1,
+    #     # batch_size=my_config["batch_size"],
+    #     n_steps=my_config["n_steps"],
+    #     learning_rate=my_config["learning_rate"],
+    #     policy_kwargs=my_config["policy_kwargs"],
+    #     # tensorboard_log=my_config["run_id"]
     )
-    #model = A2C.load(f"{my_config['save_path']}/1", env=env)
+    model = A2C.load(f"{my_config['save_path']}/1", env=env)
     train(env, model, my_config)
