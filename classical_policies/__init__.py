@@ -1,1 +1,2 @@
 from classical_policies.minimax import ExpectiMinimaxAgent
+from classical_policies.UCT import UCTAgent
