@@ -80,7 +80,8 @@ def train(env, model, config):
         for seed in range(config["eval_episode_num"]):
             done = [False]
 
-            obs, info = env.reset(seed=seed)
+            env.seed(seed)
+            obs, info = env.reset()
 
             # Interact with env using old Gym API
             while not done[0]:
