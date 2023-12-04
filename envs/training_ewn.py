@@ -13,6 +13,7 @@ class MiniMaxHeuristicEnv(MinimaxEnv):
     This class uses the heuristic function of minimax to evaluate the board.
     By leveraging the heuristic function, we can calculate the TD value between
     two states for reward shaping.
+    The score of evaluating the board is between -10 and 10.
     """
 
     def __init__(self, board_size: int = 5,
@@ -24,10 +25,11 @@ class MiniMaxHeuristicEnv(MinimaxEnv):
                  opponent_policy: str = "random",
                  # These two parameters are for reward shaping
                  illegal_move_reward: float = -1.0,
-                 illegal_move_tolerance: int = 10,):
+                 illegal_move_tolerance: int = 10,
+                 **policy_kwargs):
         # note that the original env reward is the goal reward
         super().__init__(board_size=board_size,
-                         cube_layer=cube_layer, seed=seed, reward=goal_reward, agent_player=agent_player, render_mode=render_mode, opponent_policy=opponent_policy)
+                         cube_layer=cube_layer, seed=seed, reward=goal_reward, agent_player=agent_player, render_mode=render_mode, opponent_policy=opponent_policy, **policy_kwargs)
 
         # The previous score of the agent player
         self.prev_score: float = self.evaluate()

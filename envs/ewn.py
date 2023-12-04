@@ -32,7 +32,13 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         'render_fps': FPS}
 
     def __init__(self, board_size: int = 5,
-                 cube_layer: int = 3, seed: int = 9487, reward: float = 1., agent_player: Player = Player.TOP_LEFT, render_mode: Optional[str] = None, opponent_policy: str = "random"):
+                 cube_layer: int = 3,
+                 seed: int = 9487,
+                 reward: float = 1.,
+                 agent_player: Player = Player.TOP_LEFT,
+                 render_mode: Optional[str] = None,
+                 opponent_policy: str = "random",
+                 **policy_kwargs):
         super(EinsteinWuerfeltNichtEnv, self).__init__()
 
         # make sure the cube layer is legal
@@ -68,7 +74,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.reward = reward
         # make sure the opponent policy is legal
         assert opponent_policy is not None
-        self.load_opponent_policy(opponent_policy)
+        self.load_opponent_policy(opponent_policy, policy_kwargs=policy_kwargs)
 
         # Setup the game
         self.reset(seed=seed)

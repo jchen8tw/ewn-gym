@@ -1,0 +1,43 @@
+program: train.py
+method: bayes
+metric:
+  goal: maximize
+  name: "win_rate"
+parameters:
+  num_envs:
+    value: 72
+  timesteps_per_epoch:
+    distribution: q_log_uniform_values
+    min: 100000
+    max: 500000
+    q: 10000
+  opponent_policy:
+    values:
+      - "minimax"
+      - "random"
+  eval_episode_num:
+    value: 1000
+  learning_rate:
+    distribution: log_uniform_values
+    min: 5e-5
+    max: 5e-3
+  illegal_move_reward:
+    distribution: uniform
+    min: -10
+    max: 0
+  illegal_move_tolerance:
+    distribution: int_uniform
+    min: 0
+    max: 100
+  max_depth:
+    distribution: int_uniform
+    min: 1
+    max: 5
+
+command:
+  - python
+  - ${program}
+  - ${args_no_boolean_flags}
+  - A2C
+
+

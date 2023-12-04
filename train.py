@@ -23,92 +23,11 @@ register(
     entry_point='envs:MiniMaxHeuristicEnv'
 )
 
+register(
+    id='EWN-eval-v0',
+    entry_point='envs:EinsteinWuerfeltNichtEnv'
+)
 
-# Set hyper params (configurations) for training
-# my_config = {
-#     "run_id": "example",
-
-#     # "algorithm": PPO,
-#     "algorithm": A2C,
-#     "policy_network": "MultiInputPolicy",
-#     "save_path": "models/5x5",
-
-#     "epoch_num": 5,
-#     "cube_layer": 3,
-#     "board_size": 5,
-#     # "timesteps_per_epoch": 100,
-#     "timesteps_per_epoch": 200000,
-#     # "timesteps_per_epoch": 20000,
-#     "eval_episode_num": 20,
-#     # "learning_rate": 0.0002051234174866298,
-#     "learning_rate": 3e-4,
-#     "batch_size": 8,
-#     "n_steps": 1,
-#     "opponent_policy": "minimax",
-#     "policy_kwargs": dict(activation_fn=th.nn.Tanh,
-#                           #   net_arch=[dict(pi=[128, 64, 64], vf=[128, 64, 64])]
-#                           )
-# }
-
-
-# def train(env, model, config):
-
-#     current_best = 0
-
-#     for epoch in range(config["epoch_num"]):
-
-#         # Train agent using SB3
-#         # Uncomment to enable wandb logging
-#         model.learn(
-#             total_timesteps=config["timesteps_per_epoch"],
-#             reset_num_timesteps=False,
-#             # callback=WandbCallback(
-#             #     gradient_save_freq=100,
-#             #     verbose=2,
-#             # ),
-#         )
-
-#         # Evaluation
-#         print(config["run_id"])
-#         print("Epoch: ", epoch)
-#         avg_score = 0
-#         reward = []
-#         reward_list = np.zeros(config["eval_episode_num"])
-#         for seed in range(config["eval_episode_num"]):
-#             done = [False]
-
-#             env.seed(seed)
-#             obs, info = env.reset()
-
-#             # Interact with env using old Gym API
-#             while not done[0]:
-#                 action, _state = model.predict(obs, deterministic=True)
-#                 obs, reward, done, info = env.step(action)
-
-#             avg_score += reward[0] / config["eval_episode_num"]
-#             # append the last reward of first env in vec_env
-#             episode = seed
-#             reward_list[episode] = reward[0]
-
-#         print("Avg_score:  ", avg_score)
-#         print("Reward_list:  ", reward_list)
-#         winrate: float = np.count_nonzero(
-#             np.array(reward_list) > 0) / config["eval_episode_num"]
-#         print("Win rate:  ", winrate)
-#         print()
-#         # wandb.log(
-#         #     {"avg_highest": avg_highest,
-#         #      "avg_score": avg_score}
-#         # )
-
-#         # Save best model with highest win rate
-#         if current_best < winrate:
-#             print("Saving Model")
-#             current_best = winrate
-#             save_path = config["save_path"]
-#             model.save(f"{save_path}/{epoch}")
-
-#         print("---------------")
 
 def return_model(config: Dict[str, str | int],
                  env: SubprocVecEnv) -> sb3.A2C | sb3.PPO:
@@ -124,6 +43,7 @@ def return_model(config: Dict[str, str | int],
             policy_kwargs=dict(
                 activation_fn=th.nn.Tanh),
             # tensorboard_log=my_config["run_id"]
+            seed=config["model_seed"]
         )
     else:
         model = model(
@@ -135,12 +55,65 @@ def return_model(config: Dict[str, str | int],
             policy_kwargs=dict(
                 activation_fn=th.nn.Tanh),
             # tensorboard_log=my_config["run_id"]
+            seed=config["model_seed"]
         )
     return model
 
 
+def evaluate(config: Dict[str, any],
+             model: sb3.A2C | sb3.PPO, current_best: float, epoch: int) -> float:
+    # Evaluate agent using original Env
+    avg_score = 0
+    episode_num = config["eval_episode_num"]
+    reward = []
+    reward_list = np.zeros(episode_num)
+    env = gym.make(
+        'EWN-eval-v0',
+        cube_layer=config["cube_layer"],
+        board_size=config["board_size"],
+        # evaluate with random opponent
+        opponent_policy="random"
+    )
+    for seed in range(episode_num):
+        done = False
+
+        # Interact with env using old Gym API
+        obs, info = env.reset(seed=seed)
+
+        while not done:
+            action, _state = model.predict(obs, deterministic=True)
+            obs, reward, done, trunc, info = env.step(action)
+
+        avg_score += reward / config["eval_episode_num"]
+        # append the last reward of first env in vec_env
+        episode = seed
+        reward_list[episode] = reward
+
+    print("Avg_score:  ", avg_score)
+    print("Reward_list:  ", reward_list)
+    winrate: float = np.count_nonzero(
+        np.array(reward_list) > 0) / config["eval_episode_num"]
+    print("Win rate:  ", winrate)
+    print()
+    wandb.log(
+        {"win_rate": winrate,
+         "avg_score": avg_score}
+    )
+
+    # Save best model with highest win rate
+    if current_best < winrate:
+        print("Saving Model")
+        save_path = f"models/{wandb.run.id}"
+        model.save(f"{save_path}/{epoch}")
+        print("---------------")
+        return winrate
+    else:
+        print("---------------")
+        return current_best
+
+
 def train(config=None):
-    with wandb.init(config=config):
+    with wandb.init(project="ewn-gym", config=config):
 
         config = dict(wandb.config)
 
@@ -150,11 +123,15 @@ def train(config=None):
                 cube_layer=config["cube_layer"],
                 board_size=config["board_size"],
                 opponent_policy=config["opponent_policy"],
-                goal_reward=config["goal_reward"],
-                illegal_move_reward=config["illegal_move_reward"])
+                illegal_move_reward=config["illegal_move_reward"],
+                illegal_move_tolerance=config["illegal_move_tolerance"],
+                max_depth=config["max_depth"]
+            )
             return env
 
-        env = SubprocVecEnv([make_env] * 8)
+        env = SubprocVecEnv([make_env] * config["num_envs"])
+        env.seed(config["env_seed"])
+        env.reset()
         if config["checkpoint"] is not None:
             model = return_model(config, env)
             model = model.load(config["checkpoint"])
@@ -174,49 +151,10 @@ def train(config=None):
                 #     verbose=2,
                 # ),
             )
-
             # Evaluation
-            print(config["run_id"])
+            print("Run id: ", wandb.run.id)
             print("Epoch: ", epoch)
-            avg_score = 0
-            reward = []
-            reward_list = np.zeros(config["eval_episode_num"])
-            for seed in range(config["eval_episode_num"]):
-                done = [False]
-
-                env.seed(seed)
-                obs, info = env.reset()
-
-                # Interact with env using old Gym API
-                print(obs)
-                while not done[0]:
-                    action, _state = model.predict(obs, deterministic=True)
-                    obs, reward, done, info = env.step(action)
-
-                avg_score += reward[0] / config["eval_episode_num"]
-                # append the last reward of first env in vec_env
-                episode = seed
-                reward_list[episode] = reward[0]
-
-            print("Avg_score:  ", avg_score)
-            print("Reward_list:  ", reward_list)
-            winrate: float = np.count_nonzero(
-                np.array(reward_list) > 0) / config["eval_episode_num"]
-            print("Win rate:  ", winrate)
-            print()
-            # wandb.log(
-            #     {"avg_highest": avg_highest,
-            #      "avg_score": avg_score}
-            # )
-
-            # Save best model with highest win rate
-            if current_best < winrate:
-                print("Saving Model")
-                current_best = winrate
-                save_path = f"models/{wandb.run.id}"
-                model.save(f"{save_path}/{epoch}")
-
-            print("---------------")
+            current_best = evaluate(config, model, current_best, epoch)
 
 
 def parse_args() -> argparse.Namespace:
@@ -228,14 +166,14 @@ def parse_args() -> argparse.Namespace:
         dest="algorithm",
         required=True,
         help="Algorithm to use for training")
-    parser_a2c = sub_parsers.add_parser("A2C")
+    parser_a2c = sub_parsers.add_parser("A2C", help="A2C algorithm")
     parser_a2c.add_argument(
         "-n",
         "--n_steps",
         type=int,
         default=1,
         help="The number of steps to run for each environment per update (i.e. batch size is n_steps * n_env where n_env is number of environment copies running in parallel)")
-    parser_ppo = sub_parsers.add_parser("PPO")
+    parser_ppo = sub_parsers.add_parser("PPO", help="PPO algorithm")
     parser_ppo.add_argument(
         "-b",
         "--batch_size",
@@ -253,6 +191,11 @@ def parse_args() -> argparse.Namespace:
                             "random",
                             "minimax"], help="The policy of the opponent")
     parser.add_argument(
+        "--max_depth",
+        type=int,
+        default=3,
+        help="The max depth of minimax.")
+    parser.add_argument(
         "-e",
         "--epoch_num",
         type=int,
@@ -267,19 +210,25 @@ def parse_args() -> argparse.Namespace:
         "--eval_episode_num",
         type=int,
         default=20,
-        help="Number of episodes to evaluate per epoch")
+        help="Number of episodes to evaluate per epoch, each episode num is also the seed for the environment.")
+    parser.add_argument(
+        "--model_seed",
+        type=int,
+        default=9487,
+        help="Random seed for the sb3 model. This function is currently not supported."
+    )
+    parser.add_argument(
+        "--env_seed",
+        type=int,
+        default=9487,
+        help="Random seed for the environment."
+    )
     parser.add_argument(
         "-lr",
         "--learning_rate",
         type=float,
         default=3e-4,
         help="Learning rate")
-    parser.add_argument(
-        "-r",
-        "--run_id",
-        type=str,
-        default="5x5",
-        help="Run ID, also used as save path under model/")
     parser.add_argument(
         "--num_envs",
         type=int,
@@ -291,10 +240,10 @@ def parse_args() -> argparse.Namespace:
         default=-1.0,
         help="reward for the agent when it makes an illegal move")
     parser.add_argument(
-        "--goal_reward",
-        type=float,
-        default=10.0,
-        help="reward for the agent when it wins.")
+        "--illegal_move_tolerance",
+        type=int,
+        default=10,
+        help="Number of illegal moves the agent can make before it loses.")
     parser.add_argument(
         "--checkpoint",
         type=str,
@@ -305,31 +254,6 @@ def parse_args() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
-
-    # Create wandb session (Uncomment to enable wandb logging)
-    # run = wandb.init(
-    #     project="RL-HW3",
-    #     config=my_config,
-    #     # sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
-    #     # id=my_config["run_id"]
-    # )
     args = parse_args()
     config = dict(args._get_kwargs())
-    # env = DummyVecEnv([make_env])
-    # env = SubprocVecEnv([make_env] * 8)
-    # print(env.get_attr("illegal_move_reward"))
-
-    # Create model from loaded config and train
-    # Note: Set verbose to 0 if you don't want info messages
-    # model = my_config["algorithm"](
-    #     my_config["policy_network"],
-    #     env,
-    #     # verbose=1,
-    #     # batch_size=my_config["batch_size"],
-    #     n_steps=my_config["n_steps"],
-    #     learning_rate=my_config["learning_rate"],
-    #     policy_kwargs=my_config["policy_kwargs"],
-    #     # tensorboard_log=my_config["run_id"]
-    # )
-    # model = A2C.load(f"{my_config['save_path']}/1", env=env)
     train(config)
