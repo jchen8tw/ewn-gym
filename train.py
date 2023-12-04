@@ -90,7 +90,7 @@ def evaluate(config: Dict[str, any],
         reward_list[episode] = reward
 
     print("Avg_score:  ", avg_score)
-    print("Reward_list:  ", reward_list)
+    print("Reward_list(first 10):  ", reward_list[:10])
     winrate: float = np.count_nonzero(
         np.array(reward_list) > 0) / config["eval_episode_num"]
     print("Win rate:  ", winrate)
