@@ -5,6 +5,7 @@ from stable_baselines3 import PPO, A2C
 # import plotly.express as px
 import pandas as pd
 from tqdm import trange
+import argparse
 
 
 import numpy as np
@@ -53,16 +54,37 @@ def evaluation(env, model, render_last, eval_num=100) -> np.ndarray:
     return score
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description='Evaluate a trained model', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--model', type=str, default='models/5x5/4',
+                        help='Path to model')
+    parser.add_argument('--num', type=int, default=1000,
+                        help='Number of rollouts')
+    parser.add_argument('--render_last', action='store_true',
+                        help='Render last rollout', default=False)
+    parser.add_argument('--cube_layer', type=int, default=3,
+                        help='Number of cube layers')
+    parser.add_argument('--board_size', type=int, default=5,
+                        help='Board size')
+    parser.add_argument('--opponent_policy', type=str, default='random', choices=['random', 'minimax'],
+                        help='Opponent policy')
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
     # Change path name to load different models
-    model_path = "models/5x5/4"
+
+    args = parse_args()
+
+    model_path = args.model
     env = gym.make(
         'EWN-v0',
-        cube_layer=3,
-        board_size=5,
-        opponent_policy="random",
+        cube_layer=args.cube_layer,
+        board_size=args.board_size,
+        opponent_policy=args.opponent_policy,
         # opponent_policy="minimax",
-        # render_mode='human',
+        render_mode='human',
     )
 
     # Load model with SB3
@@ -70,8 +92,8 @@ if __name__ == "__main__":
     # (You don't necessarily need to use PPO for training)
     model = A2C.load(model_path)
 
-    eval_num = 1000
-    score = evaluation(env, model, True, eval_num)
+    eval_num = args.num
+    score = evaluation(env, model, args.render_last, eval_num)
 
     print("Avg_score:  ", np.mean(score))
     winrate: float = np.count_nonzero(score > 0) / eval_num

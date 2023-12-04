@@ -218,7 +218,9 @@ def train(config=None):
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser("Trainer for EWN", add_help=True)
+    parser = argparse.ArgumentParser(
+        "Trainer for EWN",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     sub_parsers = parser.add_subparsers(
         dest="algorithm",
