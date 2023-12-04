@@ -149,7 +149,9 @@ def train(config=None):
                 'EWN-v0',
                 cube_layer=config["cube_layer"],
                 board_size=config["board_size"],
-                opponent_policy=config["opponent_policy"])
+                opponent_policy=config["opponent_policy"],
+                goal_reward=config["goal_reward"],
+                illegal_move_reward=config["illegal_move_reward"])
             return env
 
         env = SubprocVecEnv([make_env] * 8)
@@ -227,32 +229,77 @@ def parse_args() -> argparse.Namespace:
         required=True,
         help="Algorithm to use for training")
     parser_a2c = sub_parsers.add_parser("A2C")
-    parser_a2c.add_argument("-n", "--n_steps", type=int, default=1)
+    parser_a2c.add_argument(
+        "-n",
+        "--n_steps",
+        type=int,
+        default=1,
+        help="The number of steps to run for each environment per update (i.e. batch size is n_steps * n_env where n_env is number of environment copies running in parallel)")
     parser_ppo = sub_parsers.add_parser("PPO")
-    parser_ppo.add_argument("-b", "--batch_size", type=int, default=8)
+    parser_ppo.add_argument(
+        "-b",
+        "--batch_size",
+        type=int,
+        default=8,
+        help="Minibatch size")
 
-    parser.add_argument("--board_size", type=int, default=5)
-    parser.add_argument("--cube_layer", type=int, default=3)
+    parser.add_argument("--board_size", type=int, default=5, help="Board size")
+    parser.add_argument("--cube_layer", type=int, default=3, help="Cube layer")
     parser.add_argument("-op",
                         "--opponent_policy",
                         type=str,
                         default="random",
                         choices=[
                             "random",
-                            "minimax"])
-    parser.add_argument("-e", "--epoch_num", type=int, default=5)
+                            "minimax"], help="The policy of the opponent")
+    parser.add_argument(
+        "-e",
+        "--epoch_num",
+        type=int,
+        default=5,
+        help="Number of epochs to train")
     parser.add_argument(
         "-t",
         "--timesteps_per_epoch",
         type=int,
         default=200000)
-    parser.add_argument("--eval_episode_num", type=int, default=20)
-    parser.add_argument("-lr", "--learning_rate", type=float, default=3e-4)
-    parser.add_argument("-r", "--run_id", type=str, default="5x5")
-    parser.add_argument("--num_envs", type=int, default=8)
-    parser.add_argument("--illegal_move_reward", type=float, default=-1.0)
-    parser.add_argument("--goal_reward", type=float, default=10.0)
-    parser.add_argument("--checkpoint", type=str, default=None)
+    parser.add_argument(
+        "--eval_episode_num",
+        type=int,
+        default=20,
+        help="Number of episodes to evaluate per epoch")
+    parser.add_argument(
+        "-lr",
+        "--learning_rate",
+        type=float,
+        default=3e-4,
+        help="Learning rate")
+    parser.add_argument(
+        "-r",
+        "--run_id",
+        type=str,
+        default="5x5",
+        help="Run ID, also used as save path under model/")
+    parser.add_argument(
+        "--num_envs",
+        type=int,
+        default=8,
+        help="Number of environments to run in parallel")
+    parser.add_argument(
+        "--illegal_move_reward",
+        type=float,
+        default=-1.0,
+        help="reward for the agent when it makes an illegal move")
+    parser.add_argument(
+        "--goal_reward",
+        type=float,
+        default=10.0,
+        help="reward for the agent when it wins.")
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default=None,
+        help="Path to checkpoint to load from")
 
     return parser.parse_args()
 
