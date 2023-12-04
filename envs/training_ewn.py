@@ -23,7 +23,7 @@ class MiniMaxHeuristicEnv(MinimaxEnv):
                  render_mode: Optional[str] = None,
                  opponent_policy: str = "random",
                  # These two parameters are for reward shaping
-                 illgal_move_reward: float = -1.0,
+                 illegal_move_reward: float = -1.0,
                  illegal_move_tolerance: int = 10,):
         # note that the original env reward is the goal reward
         super().__init__(board_size=board_size,
@@ -31,7 +31,7 @@ class MiniMaxHeuristicEnv(MinimaxEnv):
 
         # The previous score of the agent player
         self.prev_score: float = self.evaluate()
-        self.illegal_move_reward: float = illgal_move_reward
+        self.illegal_move_reward: float = illegal_move_reward
         # The number of illegal moves the agent can make before the game ends
         self.illegal_move_tolerance: int = illegal_move_tolerance
 
