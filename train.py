@@ -14,6 +14,9 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecVide
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common.env_util import make_vec_env
 
+from constants import ClassicalPolicy
+from typing import Any
+
 warnings.filterwarnings("ignore")
 
 # Note that we use the environment from envs/training_ewn.py
@@ -60,7 +63,7 @@ def return_model(config: Dict[str, str | int],
     return model
 
 
-def evaluate(config: Dict[str, any],
+def evaluate(config: Dict[str, Any],
              model: sb3.A2C | sb3.PPO, current_best: float, epoch: int) -> float:
     # Evaluate agent using original Env
     avg_score = 0
@@ -72,7 +75,7 @@ def evaluate(config: Dict[str, any],
         cube_layer=config["cube_layer"],
         board_size=config["board_size"],
         # evaluate with random opponent
-        opponent_policy="random"
+        opponent_policy=ClassicalPolicy.random,
     )
     for seed in range(episode_num):
         done = False
@@ -185,11 +188,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cube_layer", type=int, default=3, help="Cube layer")
     parser.add_argument("-op",
                         "--opponent_policy",
-                        type=str,
-                        default="random",
-                        choices=[
-                            "random",
-                            "minimax"], help="The policy of the opponent")
+                        type=ClassicalPolicy.from_string,
+                        default=ClassicalPolicy.random,
+                        choices=list(ClassicalPolicy), help="The policy of the opponent")
     parser.add_argument(
         "--max_depth",
         type=int,

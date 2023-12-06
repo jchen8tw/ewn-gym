@@ -4,6 +4,7 @@ import warnings
 from gymnasium.envs.registration import register
 import numpy as np
 import pygame
+from constants import ClassicalPolicy
 
 warnings.filterwarnings("ignore")
 register(
@@ -16,7 +17,7 @@ register(
 env = gym.make("EWN-v0", render_mode="human",
                cube_layer=3,
                board_size=5,
-               opponent_policy="minimax")
+               opponent_policy=ClassicalPolicy.minimax)
 
 # Key mappings
 key_to_action = {

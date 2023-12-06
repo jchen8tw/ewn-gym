@@ -1,20 +1,25 @@
 from constants import Player
 import numpy as np
+from .base import PolicyBase
 
 
-class ExpectiMinimaxAgent:
-    def __init__(self, max_depth, env):
+class ExpectiMinimaxAgent(PolicyBase):
+    def __init__(self, max_depth: int, cube_layer: int, board_size: int):
+        from envs import MinimaxEnv
         self.max_depth = max_depth
-        self.env = env
+        self.env = MinimaxEnv(
+            cube_layer=cube_layer,
+            board_size=board_size)
 
     def expectiminimax(self, depth: int, player: Player,
-                       parent: Player | str, alpha: int, beta: int):
+                       parent: Player | None, alpha: int, beta: int):
+
         if self.env.check_win() or depth == 0:
             return self.env.evaluate(), None
 
         # Maximizing player
         if player == self.env.agent_player:
-            best_val = -float('inf')
+            best_val: float = -float('inf')
             best_action = None
             legal_actions = self.env.get_legal_actions(player)
             curr_dice_roll = self.env.dice_roll
@@ -22,7 +27,7 @@ class ExpectiMinimaxAgent:
                 self.env.set_dice_roll(curr_dice_roll)
                 self.env.make_simulated_action(player, action)
                 val, _ = self.expectiminimax(
-                    depth - 1, 'chance', player, alpha, beta)
+                    depth - 1, Player.CHANCE, player, alpha, beta)
                 self.env.undo_simulated_action()
                 if val > best_val:
                     best_val = val
@@ -32,7 +37,7 @@ class ExpectiMinimaxAgent:
                     break
             return best_val, best_action
         # Minimizing player
-        elif player == self.env.get_opponent(self.env.agent_player):
+        elif player == Player.get_opponent(self.env.agent_player):
             worst_val = float('inf')
             worst_action = None
             legal_actions = self.env.get_legal_actions(player)
@@ -41,7 +46,7 @@ class ExpectiMinimaxAgent:
                 self.env.set_dice_roll(curr_dice_roll)
                 self.env.make_simulated_action(player, action)
                 val, _ = self.expectiminimax(
-                    depth - 1, 'chance', player, alpha, beta)
+                    depth - 1, Player.CHANCE, player, alpha, beta)
                 self.env.undo_simulated_action()
                 if val < worst_val:
                     worst_val = val
@@ -51,10 +56,10 @@ class ExpectiMinimaxAgent:
                     break
             return worst_val, worst_action
         # Chance node
-        elif player == 'chance':
+        elif player == Player.CHANCE:
             expected_val = 0
-            next_player = self.env.agent_player if parent == self.env.get_opponent(
-                self.env.agent_player) else self.env.get_opponent(self.env.agent_player)
+            next_player = self.env.agent_player if parent == Player.get_opponent(
+                self.env.agent_player) else Player.get_opponent(self.env.agent_player)
             for dice_roll in range(1, 7):
                 self.env.set_dice_roll(dice_roll)
                 val, _ = self.expectiminimax(

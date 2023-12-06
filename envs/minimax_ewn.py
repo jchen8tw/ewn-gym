@@ -1,5 +1,5 @@
 from envs import EinsteinWuerfeltNichtEnv
-from constants import Player
+from constants import Player, ClassicalPolicy
 from typing import Tuple, Optional
 import numpy as np
 
@@ -9,14 +9,12 @@ class MinimaxEnv(EinsteinWuerfeltNichtEnv):
     """
 
     def __init__(self, board_size: int = 5,
-                 cube_layer: int = 3, seed: int = 9487, reward: float = 1., agent_player: Player = Player.TOP_LEFT, render_mode: Optional[str] = None, opponent_policy: str = "random", **policy_kwargs):
+                 cube_layer: int = 3, seed: int = 9487, reward: float = 1., agent_player: Player = Player.TOP_LEFT, render_mode: Optional[str] = None, opponent_policy: ClassicalPolicy | str = ClassicalPolicy.random, **policy_kwargs):
         super().__init__(board_size=board_size,
-                         cube_layer=cube_layer, seed=seed, reward=reward, agent_player=agent_player, render_mode=render_mode, opponent_policy=opponent_policy, **policy_kwargs)
-        # This is defined in the original env now
-        # self.cube_num: int = cube_layer * (cube_layer + 1) // 2
-
-    def get_opponent(self, player: Player):
-        return Player.BOTTOM_RIGHT if player == Player.TOP_LEFT else Player.TOP_LEFT
+                         cube_layer=cube_layer,
+                         )
+    # This is defined in the original env now
+    # self.cube_num: int = cube_layer * (cube_layer + 1) // 2
 
     def set_dice_roll(self, roll: int):
         self.dice_roll = roll

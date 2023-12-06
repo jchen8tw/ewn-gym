@@ -2,7 +2,7 @@ from envs import EinsteinWuerfeltNichtEnv, MinimaxEnv
 from classical_policies import ExpectiMinimaxAgent
 import numpy as np
 from tqdm import tqdm
-
+from constants import ClassicalPolicy
 
 if __name__ == "__main__":
 
@@ -19,8 +19,11 @@ if __name__ == "__main__":
         # opponent_policy="models/5x5/1"
     )
 
-    minimax_env = MinimaxEnv(cube_layer=cube_layer, board_size=board_size)
-    agent = ExpectiMinimaxAgent(max_depth=3, env=minimax_env)
+    # minimax_env = MinimaxEnv(cube_layer=cube_layer, board_size=board_size)
+    agent = ExpectiMinimaxAgent(
+        max_depth=3,
+        cube_layer=cube_layer,
+        board_size=board_size)
 
     win_count = 0
     for seed in tqdm(range(num_simulations)):

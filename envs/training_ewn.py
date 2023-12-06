@@ -1,5 +1,5 @@
 from envs import MinimaxEnv
-from constants import Player
+from constants import Player, ClassicalPolicy
 from typing import Tuple, Optional
 import numpy as np
 
@@ -22,7 +22,7 @@ class MiniMaxHeuristicEnv(MinimaxEnv):
                  goal_reward: float = 10.,
                  agent_player: Player = Player.TOP_LEFT,
                  render_mode: Optional[str] = None,
-                 opponent_policy: str = "random",
+                 opponent_policy: ClassicalPolicy | str = ClassicalPolicy.random,
                  # These two parameters are for reward shaping
                  illegal_move_reward: float = -1.0,
                  illegal_move_tolerance: int = 10,

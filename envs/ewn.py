@@ -2,11 +2,12 @@ import gymnasium as gym
 from gymnasium.error import DependencyNotInstalled
 import numpy as np
 from enum import Enum
-from typing import Tuple, Optional
+from typing import Optional, List
 from PIL import Image
 from stable_baselines3 import A2C
-from classical_policies import ExpectiMinimaxAgent
-from constants import Player
+from classical_policies import ExpectiMinimaxAgent, RandomAgent
+from constants import Player, ClassicalPolicy
+import pathlib
 
 
 VIEWPORT_SIZE = 700
@@ -37,7 +38,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                  reward: float = 1.,
                  agent_player: Player = Player.TOP_LEFT,
                  render_mode: Optional[str] = None,
-                 opponent_policy: str = "random",
+                 opponent_policy: ClassicalPolicy | str = ClassicalPolicy.random,
                  **policy_kwargs):
         super(EinsteinWuerfeltNichtEnv, self).__init__()
 
@@ -48,8 +49,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.board: np.ndarray = np.zeros(
             (board_size, board_size), dtype=np.int16)
         self.cube_num: int = cube_layer * (cube_layer + 1) // 2
-        # print("Board size: ", board_size)
-        # print("Cube num: ", cube_num)
         self.cube_layer: int = cube_layer
         # cube_pos[0] is the position of cube 1, cube_pos[1] is the position of
         # cube 2, etc.
@@ -70,7 +69,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         })
         # start with the top left player
         self.current_player = Player.TOP_LEFT
-        self.agent_player = agent_player
+        self.agent_player: Player = agent_player
         self.reward = reward
         # make sure the opponent policy is legal
         assert opponent_policy is not None
@@ -263,35 +262,30 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         else:
             return False
 
-    def load_opponent_policy(self, opponent_policy: str, **policy_kwargs):
+    def load_opponent_policy(
+            self, opponent_policy: ClassicalPolicy | str, **policy_kwargs):
         """Load the opponent policy"""
-        if opponent_policy == "random":
-            self.opponent_policy = "random"
-        elif opponent_policy == "minimax":
+        if opponent_policy == ClassicalPolicy.random:
+            self.opponent_policy = RandomAgent(self)
+        elif opponent_policy == ClassicalPolicy.minimax:
             # This solves the problem of circular import
-            from envs import MinimaxEnv
             # max depth defaults to 3
             max_depth: int = policy_kwargs.get("max_depth", 3)
-            minimax_env = MinimaxEnv(
+            self.opponent_policy = ExpectiMinimaxAgent(
+                max_depth=max_depth,
                 cube_layer=self.cube_layer,
                 board_size=self.board.shape[0])
-            self.opponent_policy = ExpectiMinimaxAgent(
-                max_depth=max_depth, env=minimax_env)
         else:
+            assert isinstance(opponent_policy, str)
             self.opponent_policy = A2C.load(opponent_policy)
 
     def opponent_action(self) -> np.ndarray:
-        # currently the opponent is a random agent
-        if self.opponent_policy == "random":
-            legal_moves = self.get_legal_actions(self.current_player)
-            action_idx = np.random.randint(0, len(legal_moves))
-            action = np.array(legal_moves[action_idx])
-        else:
-            # both classical and sb3 policies are trained for the top left and followes the sb3 api
-            # turn the board upside down and negate the board for the opponent
-            # This makes the policy of both player consistent
-            action, _state = self.opponent_policy.predict({"board": np.rot90(-self.board, 2),
-                                                           "dice_roll": self.dice_roll}, deterministic=True)
+
+        # both classical and sb3 policies are trained for the top left and followes the sb3 api
+        # turn the board upside down and negate the board for the opponent
+        # This makes the policy of both player consistent
+        action, _state = self.opponent_policy.predict({"board": np.rot90(-self.board, 2),
+                                                       "dice_roll": self.dice_roll}, deterministic=True)
         return action
 
     def switch_player(self):
@@ -334,7 +328,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         return cube_legal_directions
 
-    def get_legal_actions(self, player: Player):
+    def get_legal_actions(self, player: Player) -> List[List[int]]:
         legal_actions = []
 
         # Adjust dice roll for player's cube numbers (positive for TOP_LEFT,

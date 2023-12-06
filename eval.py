@@ -6,7 +6,7 @@ from stable_baselines3 import PPO, A2C
 import pandas as pd
 from tqdm import trange
 import argparse
-
+from constants import ClassicalPolicy
 
 import numpy as np
 from collections import Counter
@@ -67,7 +67,7 @@ def parse_args() -> argparse.Namespace:
                         help='Number of cube layers')
     parser.add_argument('--board_size', type=int, default=5,
                         help='Board size')
-    parser.add_argument('--opponent_policy', type=str, default='random', choices=['random', 'minimax'],
+    parser.add_argument('--opponent_policy', type=ClassicalPolicy.from_string, default=ClassicalPolicy.random, choices=list(ClassicalPolicy),
                         help='Opponent policy')
     return parser.parse_args()
 
