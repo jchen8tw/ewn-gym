@@ -165,3 +165,4 @@ models/
 .vscode/
 **/.DS_Store
 wandb/
+*~

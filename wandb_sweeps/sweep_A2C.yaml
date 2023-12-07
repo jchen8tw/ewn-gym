@@ -8,8 +8,8 @@ parameters:
     value: 72
   timesteps_per_epoch:
     distribution: q_log_uniform_values
-    min: 100000
-    max: 500000
+    min: 500000
+    max: 1000000
     q: 10000
   # opponent_policy:
   #   values:
@@ -22,20 +22,23 @@ parameters:
     min: 5e-5
     max: 5e-3
   illegal_move_reward:
-    distribution: uniform
-    min: -10
-    max: 0
+    # distribution: uniform
+    # min: -10
+    # max: 0
+    value: -1
   illegal_move_tolerance:
-    distribution: int_uniform
-    min: 0
-    max: 100
+    # distribution: int_uniform
+    # min: 0
+    # max: 100
+    value: 100
   max_depth:
-    distribution: int_uniform
-    min: 1
-    max: 5
+    # distribution: int_uniform
+    # min: 1
+    # max: 5
+    value: 5
   algorithm:
     value: "A2C"
-  selection_method:
+  selection_mode:
     values:
       - "step"
       - "episode"
@@ -45,7 +48,11 @@ command:
   - python
   - ${program}
   - ${args_no_boolean_flags}
-  - "-op minimax random"
-  - "-pb 0.5 0.5"
+  - -op
+  - minimax
+  - random
+  - -pb 
+  - 0.5 
+  - 0.5
 
 
