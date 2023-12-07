@@ -22,15 +22,13 @@ parameters:
     min: 5e-5
     max: 5e-3
   illegal_move_reward:
-    # distribution: uniform
-    # min: -10
-    # max: 0
-    value: -1
+    distribution: uniform
+    min: -5
+    max: 0
   illegal_move_tolerance:
-    # distribution: int_uniform
-    # min: 0
-    # max: 100
-    value: 100
+    distribution: int_uniform
+    min: 0
+    max: 10
   max_depth:
     # distribution: int_uniform
     # min: 1
@@ -51,8 +49,8 @@ command:
   - -op
   - minimax
   - random
-  - -pb 
-  - 0.5 
+  - -pb
+  - 0.5
   - 0.5
 
 
