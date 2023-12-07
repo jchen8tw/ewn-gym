@@ -9,7 +9,8 @@ if __name__ == "__main__":
     num_simulations = 1000
     cube_layer = 3
     board_size = 5
-
+    
+    
     env = EinsteinWuerfeltNichtEnv(
         # render_mode="ansi",
         # render_mode="rgb_array",
@@ -23,7 +24,8 @@ if __name__ == "__main__":
     agent = ExpectiMinimaxAgent(
         max_depth=3,
         cube_layer=cube_layer,
-        board_size=board_size)
+        board_size=board_size,
+        heuristic='hybrid')
 
     win_count = 0
     for seed in tqdm(range(num_simulations)):

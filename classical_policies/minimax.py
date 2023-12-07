@@ -4,18 +4,19 @@ from .base import PolicyBase
 
 
 class ExpectiMinimaxAgent(PolicyBase):
-    def __init__(self, max_depth: int, cube_layer: int, board_size: int):
+    def __init__(self, max_depth: int, cube_layer: int, board_size: int, heuristic='hybrid'):
         from envs import MinimaxEnv
         self.max_depth = max_depth
         self.env = MinimaxEnv(
             cube_layer=cube_layer,
             board_size=board_size)
+        self.heuristic = heuristic
 
     def expectiminimax(self, depth: int, player: Player,
                        parent: Player | None, alpha: int, beta: int):
 
         if self.env.check_win() or depth == 0:
-            return self.env.evaluate(), None
+            return self.env.evaluate(heuristic=self.heuristic), None
 
         # Maximizing player
         if player == self.env.agent_player:
