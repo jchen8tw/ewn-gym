@@ -11,10 +11,10 @@ parameters:
     min: 100000
     max: 500000
     q: 10000
-  opponent_policy:
-    values:
-      - "minimax"
-      - "random"
+  # opponent_policy:
+  #   values:
+  #     - "minimax"
+  #     - "random"
   eval_episode_num:
     value: 1000
   learning_rate:
@@ -33,11 +33,19 @@ parameters:
     distribution: int_uniform
     min: 1
     max: 5
+  algorithm:
+    value: "A2C"
+  selection_method:
+    values:
+      - "step"
+      - "episode"
+
 
 command:
   - python
   - ${program}
   - ${args_no_boolean_flags}
-  - A2C
+  - "-op minimax random"
+  - "-pb 0.5 0.5"
 
 
