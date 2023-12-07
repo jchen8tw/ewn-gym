@@ -20,7 +20,7 @@ if __name__ == "__main__":
     )
 
     minimax_env = MinimaxEnv(cube_layer=cube_layer, board_size=board_size)
-    agent = ExpectiMinimaxAgent(max_depth=3, env=minimax_env)
+    agent = ExpectiMinimaxAgent(max_depth=3, env=minimax_env, heuristic='hybrid')
 
     win_count = 0
     for seed in tqdm(range(num_simulations)):

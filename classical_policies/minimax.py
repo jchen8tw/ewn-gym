@@ -3,14 +3,15 @@ import numpy as np
 
 
 class ExpectiMinimaxAgent:
-    def __init__(self, max_depth, env):
+    def __init__(self, max_depth, env, heuristic='hybrid'):
         self.max_depth = max_depth
         self.env = env
+        self.heuristic = heuristic
 
     def expectiminimax(self, depth: int, player: Player,
                        parent: Player | str, alpha: int, beta: int):
         if self.env.check_win() or depth == 0:
-            return self.env.evaluate(), None
+            return self.env.evaluate(heuristic=self.heuristic), None
 
         # Maximizing player
         if player == self.env.agent_player:
