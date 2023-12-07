@@ -69,6 +69,8 @@ def parse_args() -> argparse.Namespace:
                         help='Board size')
     parser.add_argument('--opponent_policy', type=ClassicalPolicy.from_string, default=ClassicalPolicy.random, choices=list(ClassicalPolicy),
                         help='Opponent policy')
+    parser.add_argument('--max_depth', type=int, default=3,
+                        help='Max depth for minimax')
     return parser.parse_args()
 
 
@@ -85,6 +87,7 @@ if __name__ == "__main__":
         opponent_policy=args.opponent_policy,
         # opponent_policy="minimax",
         render_mode='human',
+        max_depth=args.max_depth
     )
 
     # Load model with SB3
