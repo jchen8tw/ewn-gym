@@ -123,12 +123,13 @@ def train(config=None):
         def make_env():
             env = gym.make(
                 'EWN-v0',
-                cube_layer=config["cube_layer"],
-                board_size=config["board_size"],
-                opponent_policy=config["opponent_policy"],
-                illegal_move_reward=config["illegal_move_reward"],
-                illegal_move_tolerance=config["illegal_move_tolerance"],
-                max_depth=config["max_depth"]
+                # cube_layer=config["cube_layer"],
+                # board_size=config["board_size"],
+                # opponent_policy=config["opponent_policy"],
+                # illegal_move_reward=config["illegal_move_reward"],
+                # illegal_move_tolerance=config["illegal_move_tolerance"],
+                # max_depth=config["max_depth"]
+                **config
             )
             return env
 
@@ -165,32 +166,48 @@ def parse_args() -> argparse.Namespace:
         "Trainer for EWN",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    sub_parsers = parser.add_subparsers(
-        dest="algorithm",
-        required=True,
-        help="Algorithm to use for training")
-    parser_a2c = sub_parsers.add_parser("A2C", help="A2C algorithm")
-    parser_a2c.add_argument(
+    parser.add_argument(
         "-n",
         "--n_steps",
         type=int,
         default=1,
         help="The number of steps to run for each environment per update (i.e. batch size is n_steps * n_env where n_env is number of environment copies running in parallel)")
-    parser_ppo = sub_parsers.add_parser("PPO", help="PPO algorithm")
-    parser_ppo.add_argument(
+    parser.add_argument(
         "-b",
         "--batch_size",
         type=int,
         default=8,
         help="Minibatch size")
 
+    parser.add_argument(
+        "-algo",
+        "--algorithm",
+        type=str,
+        default="PPO",
+        choices=["A2C", "PPO"],
+        help="Algorithm to use for training")
+
     parser.add_argument("--board_size", type=int, default=5, help="Board size")
     parser.add_argument("--cube_layer", type=int, default=3, help="Cube layer")
     parser.add_argument("-op",
                         "--opponent_policy",
                         type=ClassicalPolicy.from_string,
+                        nargs="+",
                         default=ClassicalPolicy.random,
-                        choices=list(ClassicalPolicy), help="The policy of the opponent")
+                        choices=list(ClassicalPolicy),
+                        help="The policy of the opponent")
+    parser.add_argument("-pb",
+                        "--policy_prob",
+                        type=float,
+                        nargs="+",
+                        default=None,
+                        help="The probability of each policy")
+    parser.add_argument("-sm",
+                        "--selection_mode",
+                        type=str,
+                        default="step",
+                        choices=["step", "episode"],
+                        help="How to select the policy randomly")
     parser.add_argument(
         "--max_depth",
         type=int,

@@ -2,10 +2,10 @@ import gymnasium as gym
 from gymnasium.error import DependencyNotInstalled
 import numpy as np
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, Literal
 from PIL import Image
 from stable_baselines3 import A2C
-from classical_policies import ExpectiMinimaxAgent, RandomAgent
+from classical_policies import ExpectiMinimaxAgent, RandomAgent, HybridAgent
 from constants import Player, ClassicalPolicy
 import pathlib
 
@@ -38,7 +38,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                  reward: float = 1.,
                  agent_player: Player = Player.TOP_LEFT,
                  render_mode: Optional[str] = None,
-                 opponent_policy: ClassicalPolicy | str = ClassicalPolicy.random,
+                 opponent_policy: List[ClassicalPolicy] | ClassicalPolicy | str = ClassicalPolicy.random,
                  **policy_kwargs):
         super(EinsteinWuerfeltNichtEnv, self).__init__()
 
@@ -72,7 +72,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.agent_player: Player = agent_player
         self.reward = reward
         # make sure the opponent policy is legal
-        assert opponent_policy is not None
+        assert opponent_policy in ClassicalPolicy or isinstance(
+            opponent_policy, list) or isinstance(opponent_policy, str)
         self.load_opponent_policy(opponent_policy, policy_kwargs=policy_kwargs)
 
         # Setup the game
@@ -263,12 +264,30 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             return False
 
     def load_opponent_policy(
-            self, opponent_policy: ClassicalPolicy | str, **policy_kwargs):
+            self, opponent_policy: List[ClassicalPolicy] | ClassicalPolicy | str, **policy_kwargs):
         """Load the opponent policy"""
-        if opponent_policy == ClassicalPolicy.random:
+        if isinstance(opponent_policy, list) and all(
+                [isinstance(policy, ClassicalPolicy) for policy in opponent_policy]):
+            # If the opponent policy is a list of classical policies
+            policy_prob: List[float] = policy_kwargs.get("policy_prob", None)
+            selection_mode: Literal['step', 'episode'] = policy_kwargs.get(
+                "selection_mode", "step")
+            hybrid_mode: Literal['stochastic', 'ensemble'] = policy_kwargs.get(
+                "hybrid_mode", "stochastic")
+            self.opponent_policy = HybridAgent(
+                opponent_policy,
+                policy_prob,
+                original_env=self,
+                selection_mode=selection_mode,
+                hybrid_mode=hybrid_mode,
+                cube_layer=self.cube_layer,
+                board_size=self.board.shape[0],
+                **policy_kwargs)
+        elif opponent_policy == ClassicalPolicy.random:
+            # If the opponent policy is random
             self.opponent_policy = RandomAgent(self)
         elif opponent_policy == ClassicalPolicy.minimax:
-            # This solves the problem of circular import
+            # If the opponent policy is minimax
             # max depth defaults to 3
             max_depth: int = policy_kwargs.get("max_depth", 3)
             self.opponent_policy = ExpectiMinimaxAgent(
@@ -483,6 +502,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         np.random.seed(seed)
         self.action_space.seed(seed)
         self.setup_game()
+        if isinstance(self.opponent_policy,
+                      HybridAgent) and self.opponent_policy.selection_mode == "episode":
+            self.opponent_policy.reset()
         return {"board": self.board,
                 "dice_roll": self.dice_roll}, {}
 

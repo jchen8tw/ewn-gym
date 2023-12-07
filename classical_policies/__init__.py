@@ -1,2 +1,3 @@
 from classical_policies.minimax import ExpectiMinimaxAgent
 from classical_policies.random_policy import RandomAgent
+from classical_policies.hybrid import HybridAgent
