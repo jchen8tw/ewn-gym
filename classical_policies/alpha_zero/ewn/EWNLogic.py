@@ -1,13 +1,7 @@
-import gymnasium as gym
-from gymnasium.error import DependencyNotInstalled
 import numpy as np
 from enum import Enum
 from typing import Optional, List
 from PIL import Image
-from stable_baselines3 import A2C
-from classical_policies import ExpectiMinimaxAgent, RandomAgent, MctsAgent, AlphaZeroAgent
-from constants import Player, ClassicalPolicy
-import pathlib
 
 
 VIEWPORT_SIZE = 700
@@ -15,7 +9,16 @@ FPS = 30
 FONT_SIZE = VIEWPORT_SIZE // 25
 
 
-class EinsteinWuerfeltNichtEnv(gym.Env):
+class IllegalMove(Exception):
+    pass
+
+
+class Player(Enum):
+    TOP_LEFT = 1
+    BOTTOM_RIGHT = -1
+
+
+class EinsteinWuerfeltNichtEnv():
     """
     The environment of Einstein Wuerfelt Nicht
     board_size(int): the size of the board(board_size * board_size)
@@ -34,13 +37,9 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
     def __init__(self, board_size: int = 5,
                  cube_layer: int = 3,
-                 seed: int = 9487,
-                 reward: float = 1.,
-                 agent_player: Player = Player.TOP_LEFT,
+                 seed: int | None = None,
                  render_mode: Optional[str] = None,
-                 opponent_policy: ClassicalPolicy | str = ClassicalPolicy.random,
-                 **policy_kwargs):
-        super(EinsteinWuerfeltNichtEnv, self).__init__()
+                 ):
 
         # make sure the cube layer is legal
         # assert board_size % 2 == 1
@@ -50,6 +49,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             (board_size, board_size), dtype=np.int16)
         self.cube_num: int = cube_layer * (cube_layer + 1) // 2
         self.cube_layer: int = cube_layer
+        self.action_size: int = 6
         # cube_pos[0] is the position of cube 1, cube_pos[1] is the position of
         # cube 2, etc.
         # cube_pos[-1], cube_pos[-2], etc. are the positions of the cubes of the
@@ -57,23 +57,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.cube_pos = np.ma.zeros(
             (self.cube_num * 2,), dtype=[("x", int), ("y", int)])
         self.dice_roll: int = 1
-        # Define action and observation space
-        self.action_space = gym.spaces.MultiDiscrete(
-            [2, 3])  # 2 for chosing the large dice or the small dice ,3 possible moves
-        self.observation_space = gym.spaces.Dict({
-            "board": gym.spaces.Box(low=-self.cube_num, high=self.cube_num, shape=(board_size, board_size), dtype=np.int16),
-            # Dice values 1-6
-            # should be Discrete(cube_num, start=1)
-            # turnaround for bug of sb3 when using one-hot encoding
-            "dice_roll": gym.spaces.Discrete(self.cube_num + 1, start=1)
-        })
-        # start with the top left player
-        self.current_player = Player.TOP_LEFT
-        self.agent_player: Player = agent_player
-        self.reward = reward
-        # make sure the opponent policy is legal
-        assert opponent_policy is not None
-        self.load_opponent_policy(opponent_policy, policy_kwargs=policy_kwargs)
 
         # Setup the game
         self.reset(seed=seed)
@@ -84,11 +67,8 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.clock = None
         self.surf = None
 
-        # History of moves
-        self.history = []
-
     def roll_dice(self):
-        self.dice_roll = np.random.randint(1, self.cube_pos.shape[0] // 2 + 1)
+        self.dice_roll = np.random.randint(1, self.cube_num + 1)
         # self.dice_roll = self.observation_space["dice_roll"].sample()
 
     def setup_game(self):
@@ -107,44 +87,53 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 cnt += 1
         self.roll_dice()
 
-        # The opponent will move first if the agent is the bottom right player
-        if self.agent_player == Player.BOTTOM_RIGHT:
-            # Perform opponent's action
-            opponent_action: np.ndarray = self.opponent_action()
+    def set_board(self, board: np.ndarray, dice_roll: np.ndarray):
+        # Set the board to the given board and dice roll
+        new_board = np.zeros((board.shape[0], board.shape[1]), dtype=np.int16)
+        for cube in range(self.cube_num):
+            cur_board_layer = board[:, :, cube]
+            cube_pos = np.nonzero(cur_board_layer)
+            assert len(
+                cube_pos[0]) <= 2, "at most 2 cube should be on the board for each cube number"
+            top_left: bool = False
+            bottom_right: bool = False
+            for i in range(len(cube_pos[0])):
+                if cur_board_layer[cube_pos[0][i], cube_pos[1][i]] == 1:
+                    self.cube_pos[cube] = (cube_pos[0][i], cube_pos[1][i])
+                    new_board[cube_pos[0][i], cube_pos[1][i]] = cube + 1
+                    top_left = True
+                elif cur_board_layer[cube_pos[0][i], cube_pos[1][i]] == -1:
+                    self.cube_pos[-cube - 1] = (cube_pos[0][i], cube_pos[1][i])
+                    new_board[cube_pos[0][i], cube_pos[1][i]] = -cube - 1
+                    bottom_right = True
+            # masking the cube_pos back if there are no cubes on the board
+            if not top_left:
+                self.cube_pos[cube] = np.ma.masked
+            if not bottom_right:
+                self.cube_pos[-cube - 1] = np.ma.masked
+        self.board = new_board
+        self.dice_roll = int(np.argmax(dice_roll)) + 1
 
-            # Determine the cube to move based on the dice roll
-            cube_to_move_index = self.find_cube_to_move(
-                opponent_action[0] == 1)
-
-            # Execute the move
-            self.execute_move(cube_to_move_index, opponent_action[1])
-            if self.check_win():
-                return {"board": self.board,
-                        "dice_roll": self.dice_roll}, -self.reward, True, {
-                    "message": "You lost!"}
-
-            # Switch turn
-            self.switch_player()
-            # Roll the dice for the next turn
-            self.roll_dice()
-
-    def check_win(self):
+    def check_win(self) -> int:
+        # change to 1 0 -1 for player 1 win, not ended, player 2 win
         # Check if any player has reached the opposite corner
-        if self.board[0, 0] < 0 or self.board[-1, -1] > 0:
-            return True
+        if self.board[0, 0] < 0:
+            return -1
+        elif self.board[-1, -1] > 0:
+            return 1
 
         # Check if any player has removed all opponent's cubes
         if not np.any(self.board > 0):  # No TOP_LEFT cubes
-            return True
-        if not np.any(self.board < 0):  # No BOTTOM_RIGHT cubes
-            return True
+            return -1
+        elif not np.any(self.board < 0):  # No BOTTOM_RIGHT cubes
+            return 1
 
-        return False
+        return 0
 
     def find_near_cube(self, cube_pos_index: int,
-                       chose_larger: bool, player: Optional[Player] = None) -> int | None:
-        if player is None:
-            player = self.current_player
+                       chose_larger: bool, player: Player) -> int | None:
+        # if player is None:
+        #     player = self.current_player
         near_cube_pos_index: int | None = None
         if chose_larger:
             # Check if there is a larger cube to move
@@ -176,27 +165,14 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         return near_cube_pos_index
 
     def find_cube_to_move(self, chose_larger: bool,
-                          player: Optional[Player] = None) -> int:
-        if player is None:
-            player = self.current_player
+                          player: Player) -> int:
+        # if player is None:
+        #     player = self.current_player
 
         # Adjust dice roll for player's cube numbers (positive for TOP_LEFT,
         # negative for BOTTOM_RIGHT)
         cube_pos_index: int = self.dice_roll - \
             1 if player == Player.TOP_LEFT else -self.dice_roll
-
-        # make sure the cube_pos and board are aligned
-        # for i in range(1, self.cube_pos.shape[0] // 2 + 1):
-        #     if self.cube_pos.mask[i - 1][0] == False:
-        #         assert self.board[self.cube_pos[i - 1][0],
-        #                           self.cube_pos[i - 1][1]] == i
-        #     else:
-        #         assert np.any(self.board == i) == False
-        #     if self.cube_pos.mask[-i][0] == False:
-        #         assert self.board[self.cube_pos[-i][0],
-        #                           self.cube_pos[-i][1]] == -i
-        #     else:
-        #         assert np.any(self.board == -i) == False
 
         # Check if there is a cube to move
         if self.cube_pos.mask[cube_pos_index][0] == False:
@@ -214,8 +190,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 assert near_cube_pos_index is not None
                 return near_cube_pos_index
 
-    def execute_move(self, cube_index: int, action: np.ndarray,
-                     dry_run: bool = False) -> bool:
+    def execute_move(self, cube_index: int, action: np.ndarray) -> bool:
         """ Execute the move of the cube and return whether the move is valid
         """
         # Find cube's current position
@@ -246,9 +221,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         # Check if move is within the board
         if 0 <= x < self.board.shape[0] and 0 <= y < self.board.shape[1]:
-            # only check if the move is valid and don't perform the move
-            if dry_run:
-                return True
             # Perform move and capture if necessary
             self.board[pos[0], pos[1]] = 0  # Remove cube from current position
             if self.board[x, y] != 0:
@@ -261,44 +233,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             return True
         else:
             return False
-
-    def load_opponent_policy(
-            self, opponent_policy: ClassicalPolicy | str, **policy_kwargs):
-        """Load the opponent policy"""
-        if opponent_policy == ClassicalPolicy.random:
-            self.opponent_policy = RandomAgent(self)
-        elif opponent_policy == ClassicalPolicy.minimax:
-            # This solves the problem of circular import
-            # max depth defaults to 3
-            max_depth: int = policy_kwargs.get("max_depth", 3)
-            self.opponent_policy = ExpectiMinimaxAgent(
-                max_depth=max_depth,
-                cube_layer=self.cube_layer,
-                board_size=self.board.shape[0])
-        elif opponent_policy == ClassicalPolicy.mcts:
-            self.opponent_policy = MctsAgent(
-                cube_layer=self.cube_layer,
-                board_size=self.board.shape[0])
-        elif opponent_policy == ClassicalPolicy.alpha_zero:
-            self.opponent_policy = AlphaZeroAgent(
-                cube_layer=self.cube_layer,
-                board_size=self.board.shape[0],
-                **policy_kwargs)
-        else:
-            assert isinstance(opponent_policy, str)
-            self.opponent_policy = A2C.load(opponent_policy)
-
-    def opponent_action(self) -> np.ndarray:
-
-        # both classical and sb3 policies are trained for the top left and followes the sb3 api
-        # turn the board upside down and negate the board for the opponent
-        # This makes the policy of both player consistent
-        action, _state = self.opponent_policy.predict({"board": np.rot90(-self.board, 2),
-                                                       "dice_roll": self.dice_roll}, deterministic=True)
-        return action
-
-    def switch_player(self):
-        self.current_player = Player.BOTTOM_RIGHT if self.current_player == Player.TOP_LEFT else Player.TOP_LEFT
 
     def update_position(self, x: int, y: int, direction: int, cube: int):
         # Determine new position based on action and cube
@@ -324,7 +258,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         # Check if the position is within the board boundaries
         return 0 <= x < self.board.shape[0] and 0 <= y < self.board.shape[1]
 
-    def get_cube_legal_directions(self, cube_pos_index: int):
+    def get_cube_legal_directions(self, cube_pos_index: int) -> list[int]:
         cube_legal_directions = []
         pos = self.cube_pos[cube_pos_index]
         cube = self.board[pos[0], pos[1]]
@@ -337,8 +271,12 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
 
         return cube_legal_directions
 
-    def get_legal_actions(self, player: Player) -> List[List[int]]:
-        legal_actions = []
+    def get_legal_actions(self, player: Player) -> np.ndarray:
+        # Legal move will be an array of actionsize
+        # each element is either 1 or 0 representing whether the action is legal
+        # the element represents the action in the following order respectively
+        # [0,0] [0,1] [0,2] [1,0]... etc
+        legal_actions = np.zeros(self.action_size, dtype=np.int8)
 
         # Adjust dice roll for player's cube numbers (positive for TOP_LEFT,
         # negative for BOTTOM_RIGHT)
@@ -349,9 +287,11 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         if self.cube_pos.mask[cube_pos_index][0] == False:
             cube_legal_directions = self.get_cube_legal_directions(
                 cube_pos_index)
-            cube_legal_actions = [[0, direction]
-                                  for direction in cube_legal_directions]
-            legal_actions.extend(cube_legal_actions)
+            # cube_legal_actions = [[0, direction]
+            #                       for direction in cube_legal_directions]
+            # legal_actions.extend(cube_legal_actions)
+            for direction in cube_legal_directions:
+                legal_actions[direction] = 1  # [0, direction] = 1
             return legal_actions
         else:
             # Check if there is a larger cube to move
@@ -360,9 +300,11 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             if near_cube_pos_index is not None:
                 cube_legal_directions = self.get_cube_legal_directions(
                     near_cube_pos_index)
-                cube_legal_actions = [[1, direction]
-                                      for direction in cube_legal_directions]
-                legal_actions.extend(cube_legal_actions)
+                # cube_legal_actions = [[1, direction]
+                #                       for direction in cube_legal_directions]
+                # legal_actions.extend(cube_legal_actions)
+                for direction in cube_legal_directions:
+                    legal_actions[direction + 3] = 1
 
             # Check if there is a smaller cube to move
             near_cube_pos_index = self.find_near_cube(
@@ -370,130 +312,44 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
             if near_cube_pos_index is not None:
                 cube_legal_directions = self.get_cube_legal_directions(
                     near_cube_pos_index)
-                cube_legal_actions = [[0, direction]
-                                      for direction in cube_legal_directions]
-                legal_actions.extend(cube_legal_actions)
+                # cube_legal_actions = [[0, direction]
+                #                       for direction in cube_legal_directions]
+                # legal_actions.extend(cube_legal_actions)
+                for direction in cube_legal_directions:
+                    legal_actions[direction] = 1
 
             return legal_actions
 
-    def make_simulated_action(self, player: Player, action: np.ndarray):
-        # Determine the cube to move based on the dice roll
-        cube_to_move_index = self.find_cube_to_move(action[0] == 1, player)
+    def step(self, action: int, player: Player):
 
-        if cube_to_move_index is None:
-            self.history.append(None)
-            return
+        # action is now a 1d array of action size representing the action in the following order respectively
+        # [0,0] [0,1] [0,2] [1,0]... etc
 
-        # Find cube's current position
-        pos = self.cube_pos[cube_to_move_index]
-        original_pos = (pos[0], pos[1])
-        cube = self.board[pos[0], pos[1]]
-        assert cube != 0
-        x, y = self.update_position(pos[0], pos[1], action[1], cube)
-
-        # Check if move is within the board
-        if self.is_within_board(x, y):
-            # Perform move and capture if necessary
-            self.board[pos[0], pos[1]] = 0  # Remove cube from current position
-            remove_cube_index = None
-            if self.board[x, y] != 0:
-                remove_cube_index = self.board[x, y] - \
-                    1 if self.board[x, y] > 0 else self.board[x, y]
-                remove_cube = self.board[x, y]
-                # Remove cube from cube_pos
-                self.cube_pos[remove_cube_index] = np.ma.masked
-            self.board[x, y] = cube  # Place cube in new position
-            self.cube_pos[cube_to_move_index] = (x, y)  # Update cube_pos
-
-            if remove_cube_index is None:
-                remove_cube = None
-            self.history.append(
-                (cube_to_move_index, cube, original_pos, (x, y), remove_cube_index, remove_cube))
-        else:
-            # Illegal move
-            self.history.append(None)
-
-    def undo_simulated_action(self):
-        if not self.history:
-            return
-
-        # Retrieve the last move
-        last_move = self.history.pop()
-        if last_move is None:
-            return
-        cube_to_move_index, cube_to_move, original_pos, new_pos, remove_cube_index, remove_cube = last_move
-
-        # Restore the cube to its original position
-        self.board[new_pos[0], new_pos[1]] = 0  # Clear new position
-        # Restore cube to original position
-        self.board[original_pos[0], original_pos[1]] = cube_to_move
-        self.cube_pos[cube_to_move_index] = original_pos  # Update cube_pos
-
-        # If a cube was captured, restore it
-        if remove_cube_index is not None:
-            self.cube_pos[remove_cube_index] = new_pos
-            # Restore captured cube
-            self.board[new_pos[0], new_pos[1]] = remove_cube
-
-    def step(self, action: np.ndarray):
+        action: np.ndarray = np.array([action // 3, action % 3])
 
         # Determine the cube to move based on the dice roll
-        cube_to_move_index = self.find_cube_to_move(action[0] == 1)
+        cube_to_move_index = self.find_cube_to_move(
+            action[0] == 1, player=player)
 
         # Execute the move
         valid: bool = self.execute_move(cube_to_move_index, action[1])
 
         # Check if the move is valid
         if not valid:
-            return {"board": self.board,
-                    "dice_roll": self.dice_roll}, -self.reward, True, True, {
-                "message": "Invalid move for player! End the game."}
+            raise IllegalMove(
+                f"Invalid move for {player.name}! End the game.")
 
-        # Check for win condition
-        if self.check_win():
-            return {"board": self.board,
-                    "dice_roll": self.dice_roll}, self.reward, True, False, {
-                "message": "You won!"}
-
-        # Switch turn
-        self.switch_player()
         self.roll_dice()  # Roll the dice for opponent's turn
 
-        # Perform opponent's action
-        opponent_action: np.ndarray = self.opponent_action()
-
-        # Determine the cube to move based on the dice roll
-        cube_to_move_index = self.find_cube_to_move(opponent_action[0] == 1)
-
-        # Execute the move
-        valid = self.execute_move(cube_to_move_index, opponent_action[1])
-
-        # Check if the move is valid
-        if not valid:
-            return {"board": self.board,
-                    "dice_roll": self.dice_roll}, 0, True, True, {
-                "message": "Invalid move for opponent! End the game."}
-
-        if self.check_win():
-            return {"board": self.board,
-                    "dice_roll": self.dice_roll}, -self.reward, True, False, {
-                "message": "You lost!"}
-
-        # Switch turn
-        self.switch_player()
-        # Roll the dice for the next turn
-        self.roll_dice()
-
+        # Check for win condition
         return {"board": self.board,
-                "dice_roll": self.dice_roll}, 0, False, False, {}
+                "dice_roll": self.dice_roll}, self.check_win()
 
     def reset(self, seed: Optional[int] = None):
-        self.current_player = Player.TOP_LEFT
         np.random.seed(seed)
-        self.action_space.seed(seed)
         self.setup_game()
         return {"board": self.board,
-                "dice_roll": self.dice_roll}, {}
+                "dice_roll": self.dice_roll}
 
     def render(self):
         # Render the environment to the screen
@@ -507,7 +363,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 import pygame
                 from pygame import gfxdraw
             except ImportError as e:
-                raise DependencyNotInstalled(
+                raise Exception(
                     "pygame is not installed, run `pip install gymnasium[box2d]`"
                 ) from e
 
@@ -587,14 +443,19 @@ if __name__ == "__main__":
         board_size=5)
     obs = env.reset()
     states = []
+    done = False
     while True:
         # env.render()
-        states.append(env.render())
-        action = env.action_space.sample()
-        obs, reward, done, truncated, info = env.step(action)
+        for player in [Player.TOP_LEFT, Player.BOTTOM_RIGHT]:
+            states.append(env.render())
+            action = np.random.choice(np.nonzero(
+                env.get_legal_actions(player))[0])
+            obs, done = env.step(action, player)
+            if done:
+                break
         if done:
             break
-            # env.reset()
+        # env.reset()
 
     images = [Image.fromarray(state) for state in states]
     images = iter(images)

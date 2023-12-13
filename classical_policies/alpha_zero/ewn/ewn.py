@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Optional, List
 from PIL import Image
 from stable_baselines3 import A2C
-from classical_policies import ExpectiMinimaxAgent, RandomAgent, MctsAgent, AlphaZeroAgent
+from classical_policies import ExpectiMinimaxAgent, RandomAgent
 from constants import Player, ClassicalPolicy
 import pathlib
 
@@ -275,15 +275,6 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 max_depth=max_depth,
                 cube_layer=self.cube_layer,
                 board_size=self.board.shape[0])
-        elif opponent_policy == ClassicalPolicy.mcts:
-            self.opponent_policy = MctsAgent(
-                cube_layer=self.cube_layer,
-                board_size=self.board.shape[0])
-        elif opponent_policy == ClassicalPolicy.alpha_zero:
-            self.opponent_policy = AlphaZeroAgent(
-                cube_layer=self.cube_layer,
-                board_size=self.board.shape[0],
-                **policy_kwargs)
         else:
             assert isinstance(opponent_policy, str)
             self.opponent_policy = A2C.load(opponent_policy)
