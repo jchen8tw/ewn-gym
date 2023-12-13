@@ -14,21 +14,21 @@ class MctsAgent(PolicyBase):
             cube_layer=cube_layer,
             board_size=board_size)
 
-    def simulate(self, env_copy, num_simulations=10) -> int:
+    def simulate(self, env_copy, num_simulations=20) -> int:
         """ simulate till game over and get win count """
         win_count = 0
         for _ in range(num_simulations):
             action_count = 0
-            curr_player = Player.TOP_LEFT
+            curr_player = Player.BOTTOM_RIGHT
             # Simulate till game over
             while not env_copy.check_win():
-                curr_player = Player.get_opponent(curr_player)
                 env_copy.set_dice_roll(random.randint(1, 6))
                 curr_legal_actions = env_copy.get_legal_actions(curr_player)
                 chosen_action_idx = random.randint(0, len(curr_legal_actions) - 1)
-                curr_legal_action = curr_legal_actions[chosen_action_idx]
-                env_copy.make_simulated_action(curr_player, curr_legal_action)
+                chosen_legal_action = curr_legal_actions[chosen_action_idx]
+                env_copy.make_simulated_action(curr_player, chosen_legal_action)
                 action_count += 1
+                curr_player = Player.get_opponent(curr_player)
             # Check if the agent player has won
             if env_copy.board[-1, -
                           1] > 0 or not np.any(env_copy.board < 0):
@@ -66,7 +66,6 @@ class MctsAgent(PolicyBase):
         """ mcts without multiprocessing """
         legal_actions = self.env.get_legal_actions(Player.TOP_LEFT)
         win_counts = []
-    
         for legal_action in legal_actions:
             self.env.make_simulated_action(Player.TOP_LEFT, legal_action)
             env_copy = copy.deepcopy(self.env)
