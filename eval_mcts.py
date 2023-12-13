@@ -6,7 +6,7 @@ from constants import ClassicalPolicy
 
 if __name__ == "__main__":
 
-    num_simulations = 1
+    num_simulations = 1000
     cube_layer = 3
     board_size = 5
     
@@ -36,7 +36,6 @@ if __name__ == "__main__":
             if done:
                 if info['message'] == 'You won!':
                     win_count += 1
-                # print(info['message'])
                 break
 
     print(f'win rate: {win_count / num_simulations * 100:.2f}%')
