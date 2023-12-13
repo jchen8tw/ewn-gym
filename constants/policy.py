@@ -7,6 +7,7 @@ class ClassicalPolicy(Enum):
     minimax = "minimax"
     uct = "uct"
     alpha_zero = "alpha_zero"
+    mcts = "mcts"
 
     def __str__(self):
         return self.value

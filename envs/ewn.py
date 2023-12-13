@@ -275,6 +275,10 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
                 max_depth=max_depth,
                 cube_layer=self.cube_layer,
                 board_size=self.board.shape[0])
+        elif opponent_policy == ClassicalPolicy.mcts:
+            self.opponent_policy = MctsAgent(
+                cube_layer=self.cube_layer,
+                board_size=self.board.shape[0])
         else:
             assert isinstance(opponent_policy, str)
             self.opponent_policy = A2C.load(opponent_policy)
