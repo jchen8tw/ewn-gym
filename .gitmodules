@@ -1,0 +1,3 @@
+[submodule "alpha_zero_models"]
+	path = alpha_zero_models
+	url = git@hf.co:jchen8tw:/alpha_zero_ewn
