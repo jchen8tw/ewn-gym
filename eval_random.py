@@ -1,13 +1,15 @@
 from envs import EinsteinWuerfeltNichtEnv, MinimaxEnv
-from classical_policies import MctsAgent
+from classical_policies import RandomAgent
 import numpy as np
 from tqdm import tqdm
 from constants import ClassicalPolicy
 from statsmodels.stats.proportion import proportion_confint
 
+
+
 if __name__ == "__main__":
 
-    num_simulations = 1000
+    num_simulations = 5000
     cube_layer = 3
     board_size = 5
     alpha = 0.05
@@ -22,9 +24,9 @@ if __name__ == "__main__":
         # opponent_policy="models/5x5/1"
     )
 
-    agent = MctsAgent(
-        cube_layer=cube_layer,
-        board_size=board_size)
+    agent = RandomAgent(
+        env=env,
+        )
 
     win_count = 0
     for seed in tqdm(range(num_simulations)):
@@ -43,3 +45,4 @@ if __name__ == "__main__":
     print(f'win rate: {win_count / num_simulations * 100:.2f}%')
     #calculate (1-alpha)% confidence interval with {win_count} successes in {num_simulations} trials
     print(f'The {1-alpha} confidence interval for the true win rate: {proportion_confint(count=win_count, nobs=num_simulations, alpha=alpha)}')
+    
