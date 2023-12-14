@@ -1,5 +1,5 @@
 from envs import EinsteinWuerfeltNichtEnv, MinimaxEnv
-from classical_policies import MctsAgent
+from classical_policies import RandomAgent
 import numpy as np
 from tqdm import tqdm
 from constants import ClassicalPolicy
@@ -53,7 +53,7 @@ def evaluation(env, model, render_last, eval_num=100) -> np.ndarray:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description='Evaluate mcts agent', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        description='Evaluate random agent', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--num', type=int, default=100,
                         help='Number of rollouts')
     parser.add_argument('--render_last', action='store_true',
@@ -68,8 +68,10 @@ def parse_args() -> argparse.Namespace:
                         help='Opponent policy')
     return parser.parse_args()
 
+
+
 if __name__ == "__main__":
-    
+
     args = parse_args()
 
     env = gym.make(
@@ -80,9 +82,9 @@ if __name__ == "__main__":
         # render_mode='human',
     )
     
-    agent = MctsAgent(
-        cube_layer=args.cube_layer,
-        board_size=args.board_size)
+    agent = RandomAgent(
+        env=env,
+        )
     
     eval_num = args.num
     score = evaluation(env, agent, args.render_last, eval_num)
@@ -95,5 +97,6 @@ if __name__ == "__main__":
     print(f'The {1-args.significance_level} confidence interval: {proportion_confint(count=winrate, nobs=eval_num, alpha=args.significance_level)}')
 
     print(f"Counts: (Total of {eval_num} rollouts)")
+
 
 

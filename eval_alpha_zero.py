@@ -10,6 +10,7 @@ from constants import ClassicalPolicy
 
 import numpy as np
 from collections import Counter
+from statsmodels.stats.proportion import proportion_confint
 
 register(
     id='EWN-v0',
@@ -79,6 +80,8 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=3,
         help='Max depth for minimax')
+    parser.add_argument('--significance_level', type=float, default=0.05,
+                        help='Board size')
     return parser.parse_args()
 
 
@@ -113,5 +116,8 @@ if __name__ == "__main__":
     winrate: float = np.count_nonzero(score > 0) / eval_num
     print("Avg win rate:  ", winrate)
     # print("Avg_highest:", np.sum(highest) / eval_num)
+    # calculate (1-alpha)% confidence interval with {win_count} successes in
+    # {num_simulations} trials
+    print(f'The {1-args.significance_level} confidence interval: {proportion_confint(count=winrate, nobs=eval_num, alpha=args.significance_level)}')
 
     print(f"Counts: (Total of {eval_num} rollouts)")

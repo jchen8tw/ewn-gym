@@ -10,6 +10,7 @@ from constants import ClassicalPolicy
 
 import numpy as np
 from collections import Counter
+from statsmodels.stats.proportion import proportion_confint
 
 register(
     id='EWN-v0',
@@ -67,6 +68,8 @@ def parse_args() -> argparse.Namespace:
                         help='Number of cube layers')
     parser.add_argument('--board_size', type=int, default=5,
                         help='Board size')
+    parser.add_argument('--significance_level', type=float, default=0.05,
+                        help='Board size')
     parser.add_argument('--opponent_policy', type=ClassicalPolicy.from_string, default=ClassicalPolicy.random, choices=list(ClassicalPolicy),
                         help='Opponent policy')
     parser.add_argument(
@@ -103,5 +106,7 @@ if __name__ == "__main__":
     winrate: float = np.count_nonzero(score > 0) / eval_num
     print("Avg win rate:  ", winrate)
     # print("Avg_highest:", np.sum(highest) / eval_num)
+    print(f'The {1-args.significance_level} confidence interval: {proportion_confint(count=winrate, nobs=eval_num, alpha=args.significance_level)}')
+    
 
     print(f"Counts: (Total of {eval_num} rollouts)")
