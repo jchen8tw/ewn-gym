@@ -73,7 +73,7 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         self.reward = reward
         # make sure the opponent policy is legal
         assert opponent_policy is not None
-        self.load_opponent_policy(opponent_policy, policy_kwargs=policy_kwargs)
+        self.load_opponent_policy(opponent_policy, **policy_kwargs)
 
         # Setup the game
         self.reset(seed=seed)
@@ -268,17 +268,15 @@ class EinsteinWuerfeltNichtEnv(gym.Env):
         if opponent_policy == ClassicalPolicy.random:
             self.opponent_policy = RandomAgent(self)
         elif opponent_policy == ClassicalPolicy.minimax:
-            # This solves the problem of circular import
-            # max depth defaults to 3
-            max_depth: int = policy_kwargs.get("max_depth", 3)
             self.opponent_policy = ExpectiMinimaxAgent(
-                max_depth=max_depth,
                 cube_layer=self.cube_layer,
-                board_size=self.board.shape[0])
+                board_size=self.board.shape[0],
+                **policy_kwargs)
         elif opponent_policy == ClassicalPolicy.mcts:
             self.opponent_policy = MctsAgent(
                 cube_layer=self.cube_layer,
-                board_size=self.board.shape[0])
+                board_size=self.board.shape[0],
+                **policy_kwargs)
         elif opponent_policy == ClassicalPolicy.alpha_zero:
             self.opponent_policy = AlphaZeroAgent(
                 cube_layer=self.cube_layer,

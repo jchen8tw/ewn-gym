@@ -22,7 +22,7 @@ class AlphaZeroAgent(PolicyBase):
             **kwargs):
         g = EWNGame(board_size=board_size, cube_layer=cube_layer)
         n1 = NNet(g)
-        n1.load_checkpoint(model_folder, model_name)
+        n1.load_checkpoint(folder=model_folder, filename=model_name)
         args1 = dotdict({'numMCTSSims': numMCTSSims, 'cpuct': cpuct})
         self.mcts = MCTS(g, n1, args1)
         self.index2action = {
