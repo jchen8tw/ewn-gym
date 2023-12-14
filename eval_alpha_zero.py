@@ -1,6 +1,6 @@
 import gymnasium as gym
 from gymnasium.envs.registration import register
-from stable_baselines3 import PPO, A2C
+from classical_policies import AlphaZeroAgent
 # import plotly.graph_objects as go
 # import plotly.express as px
 import pandas as pd
@@ -10,6 +10,7 @@ from constants import ClassicalPolicy
 
 import numpy as np
 from collections import Counter
+from statsmodels.stats.proportion import proportion_confint
 
 register(
     id='EWN-v0',
@@ -57,8 +58,10 @@ def evaluation(env, model, render_last, eval_num=100) -> np.ndarray:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Evaluate a trained model', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--model', type=str, default='models/5x5/4',
-                        help='Path to model')
+    parser.add_argument('--model_folder', type=str, default='alpha_zero_models',
+                        help='folder of model')
+    parser.add_argument('--model_name', type=str, default='checkpoint_40.pth.tar',
+                        help='name of model')
     parser.add_argument('--num', type=int, default=1000,
                         help='Number of rollouts')
     parser.add_argument('--render_last', action='store_true',
@@ -66,6 +69,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--cube_layer', type=int, default=3,
                         help='Number of cube layers')
     parser.add_argument('--board_size', type=int, default=5,
+                        help='Board size')
+    parser.add_argument('--significance_level', type=float, default=0.05,
                         help='Board size')
     parser.add_argument('--opponent_policy', type=ClassicalPolicy.from_string, default=ClassicalPolicy.random, choices=list(ClassicalPolicy),
                         help='Opponent policy')
@@ -77,7 +82,6 @@ if __name__ == "__main__":
 
     args = parse_args()
 
-    model_path = args.model
     env = gym.make(
         'EWN-v0',
         cube_layer=args.cube_layer,
@@ -87,17 +91,23 @@ if __name__ == "__main__":
         render_mode='human',
     )
 
-    # Load model with SB3
-    # Note: Model can be loaded with arbitrary algorithm class for evaluation
-    # (You don't necessarily need to use PPO for training)
-    model = A2C.load(model_path)
+    agent = AlphaZeroAgent(
+        model_folder=args.model_folder,
+        model_name=args.model_name,
+        board_size=args.board_size,
+        cube_layer=args.cube_layer,
+        numMCTSSims=50,
+        cpuct=1.0,
+    )
 
     eval_num = args.num
-    score = evaluation(env, model, args.render_last, eval_num)
+    score = evaluation(env, agent, args.render_last, eval_num)
 
     print("Avg_score:  ", np.mean(score))
     winrate: float = np.count_nonzero(score > 0) / eval_num
     print("Avg win rate:  ", winrate)
     # print("Avg_highest:", np.sum(highest) / eval_num)
+    #calculate (1-alpha)% confidence interval with {win_count} successes in {num_simulations} trials
+    print(f'The {1-args.significance_level} confidence interval: {proportion_confint(count=winrate, nobs=eval_num, alpha=args.significance_level)}')
 
     print(f"Counts: (Total of {eval_num} rollouts)")
