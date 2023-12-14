@@ -123,12 +123,7 @@ def train(config=None):
         def make_env():
             env = gym.make(
                 'EWN-v0',
-                cube_layer=config["cube_layer"],
-                board_size=config["board_size"],
-                opponent_policy=config["opponent_policy"],
-                illegal_move_reward=config["illegal_move_reward"],
-                illegal_move_tolerance=config["illegal_move_tolerance"],
-                max_depth=config["max_depth"]
+                **config
             )
             return env
 
@@ -250,6 +245,12 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Path to checkpoint to load from")
+    parser.add_argument(
+        "--alpha_model_name",
+        type=str,
+        default=None,
+        dest="model_name",
+        help="model name of the alpha zero model")
 
     return parser.parse_args()
 

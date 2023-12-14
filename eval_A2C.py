@@ -69,6 +69,12 @@ def parse_args() -> argparse.Namespace:
                         help='Board size')
     parser.add_argument('--opponent_policy', type=ClassicalPolicy.from_string, default=ClassicalPolicy.random, choices=list(ClassicalPolicy),
                         help='Opponent policy')
+    parser.add_argument(
+        '--alpha_model_name',
+        type=str,
+        dest="model_name",
+        default="checkpoint_242.pth.tar",
+        help='model name of alpha zero')
     return parser.parse_args()
 
 
@@ -80,11 +86,9 @@ if __name__ == "__main__":
     model_path = args.model
     env = gym.make(
         'EWN-v0',
-        cube_layer=args.cube_layer,
-        board_size=args.board_size,
-        opponent_policy=args.opponent_policy,
         # opponent_policy="minimax",
         render_mode='human',
+        **args.__dict__
     )
 
     # Load model with SB3
