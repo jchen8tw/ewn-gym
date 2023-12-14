@@ -98,6 +98,8 @@ if __name__ == "__main__":
         # opponent_policy="minimax",
         render_mode='human',
         max_depth=args.max_depth,
+        model_name=args.model_name,
+        model_folder=args.model_folder,
     )
 
     agent = AlphaZeroAgent(

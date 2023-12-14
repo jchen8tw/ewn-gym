@@ -71,6 +71,10 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=3,
         help='Max depth for minimax')
+    parser.add_argument('--model_folder', type=str, default='alpha_zero_models',
+                        help='folder of model')
+    parser.add_argument('--model_name', type=str, default='checkpoint_100.pth.tar',
+                        help='name of model')
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -84,6 +88,8 @@ if __name__ == "__main__":
         opponent_policy=args.opponent_policy,
         # render_mode='human',
         max_depth=args.max_depth,
+        model_name=args.model_name,
+        model_folder=args.model_folder,
     )
     
     agent = MctsAgent(
