@@ -9,7 +9,8 @@ import random
 
 class MctsAgent(PolicyBase):
     def __init__(self, cube_layer: int, board_size: int,
-                 num_simulations: int = 20):
+                 num_simulations: int = 20,
+                 **kwargs):
         from envs import MinimaxEnv
         self.env = MinimaxEnv(
             cube_layer=cube_layer,

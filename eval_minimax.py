@@ -53,7 +53,7 @@ def evaluation(env, model, render_last, eval_num=100) -> np.ndarray:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description='Evaluate minimax agent', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--max_depth', type=int, default=5,
+    parser.add_argument('--max_depth', type=int, default=3,
                         help='Max search depth')
     parser.add_argument('--heuristic', type=str, default='hybrid',
                         help='Heuristic used in searhcing')
@@ -81,6 +81,7 @@ if __name__ == "__main__":
         board_size=args.board_size,
         opponent_policy=args.opponent_policy,
         # render_mode='human',
+        max_depth=args.max_depth,
     )
     
     agent = ExpectiMinimaxAgent(

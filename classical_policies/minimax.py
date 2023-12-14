@@ -4,7 +4,7 @@ from .base import PolicyBase
 
 
 class ExpectiMinimaxAgent(PolicyBase):
-    def __init__(self, max_depth: int, cube_layer: int, board_size: int, heuristic='hybrid'):
+    def __init__(self, max_depth: int, cube_layer: int, board_size: int, heuristic='hybrid', **kwargs):
         from envs import MinimaxEnv
         self.max_depth = max_depth
         self.env = MinimaxEnv(
