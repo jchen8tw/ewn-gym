@@ -70,7 +70,7 @@ def parse_args() -> argparse.Namespace:
                         help='Board size')
     parser.add_argument('--significance_level', type=float, default=0.05,
                         help='Board size')
-    parser.add_argument('--opponent_policy', type=ClassicalPolicy.from_string, default=ClassicalPolicy.random, choices=list(ClassicalPolicy),
+    parser.add_argument('--opponent_policy', type=ClassicalPolicy.from_string, default=ClassicalPolicy.random,
                         help='Opponent policy')
     parser.add_argument(
         '--alpha_model_name',
@@ -78,6 +78,22 @@ def parse_args() -> argparse.Namespace:
         dest="model_name",
         default="checkpoint_242.pth.tar",
         help='model name of alpha zero')
+    parser.add_argument(
+        "--max_depth",
+        type=int,
+        default=5,
+        help="max depth of minimax")
+    parser.add_argument(
+        "--model_folder",
+        type=str,
+        default="alpha_zero_models",
+        help="folder name of alpha zero models"
+    )
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default="checkpoint_242.pth.tar",
+        help="model name of alpha zero")
     return parser.parse_args()
 
 
@@ -107,6 +123,5 @@ if __name__ == "__main__":
     print("Avg win rate:  ", winrate)
     # print("Avg_highest:", np.sum(highest) / eval_num)
     print(f'The {1-args.significance_level} confidence interval: {proportion_confint(count=winrate, nobs=eval_num, alpha=args.significance_level)}')
-    
 
     print(f"Counts: (Total of {eval_num} rollouts)")
