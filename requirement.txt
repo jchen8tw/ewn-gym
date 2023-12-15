@@ -2,3 +2,4 @@ gymnasium[box]
 stable-baselines3[extra]
 wandb
 tqdm
+statmodels
