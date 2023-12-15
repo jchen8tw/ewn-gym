@@ -71,8 +71,10 @@ class EwnNNet(nn.Module):
         s = F.relu(self.bn3(self.conv3(s)))
         # batch_size x num_channels x (board_x-4) x (board_y-4)
         s = F.relu(self.bn4(self.conv4(s)))
-        s = s.view(-1, self.args.num_channels *
-                   (self.board_x - 4) * (self.board_y - 4))
+        # s = s.view(-1, self.args.num_channels *
+        #            (self.board_x - 4) * (self.board_y - 4))
+        s = s.reshape(-1, self.args.num_channels *
+                      (self.board_x - 4) * (self.board_y - 4))
 
         # add the input of dice_roll(cube_num)
         s = torch.cat((s, dice_roll), dim=1)
