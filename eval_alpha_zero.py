@@ -82,10 +82,8 @@ def parse_args() -> argparse.Namespace:
         help='Max depth for minimax')
     parser.add_argument('--significance_level', type=float, default=0.05,
                         help='Board size')
-    parser.add_argument('--num_env_copies', type=int, default=5,
-                        help='Number of env copies for multiprocessing')
-    parser.add_argument('--num_simulations_per_env', type=int, default=10,
-                        help='Number of simulations per env')
+    parser.add_argument('--num_simulations', type=int, default=10,
+                        help='Number of simulations')
     return parser.parse_args()
 
 

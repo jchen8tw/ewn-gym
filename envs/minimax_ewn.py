@@ -3,6 +3,10 @@ from constants import Player, ClassicalPolicy
 from typing import Tuple, Optional
 import numpy as np
 
+from multiprocessing import Pool
+import copy
+import random
+
 
 class MinimaxEnv(EinsteinWuerfeltNichtEnv):
     """This class is used to evaluate the board state for the minimax algorithm
@@ -13,19 +17,24 @@ class MinimaxEnv(EinsteinWuerfeltNichtEnv):
         super().__init__(board_size=board_size,
                          cube_layer=cube_layer,
                          )
-    # This is defined in the original env now
-    # self.cube_num: int = cube_layer * (cube_layer + 1) // 2
+
+        self.num_simulations = 100
+
+        # This is defined in the original env now
+        # self.cube_num: int = cube_layer * (cube_layer + 1) // 2
 
     def set_dice_roll(self, roll: int):
         self.dice_roll = roll
 
     def evaluate(self, heuristic='hybrid') -> float:
         if heuristic == 'min_dist':
-            return self.evaluate_min_dist();
+            return self.evaluate_min_dist()
         elif heuristic == 'two_min_dist':
-            return self.evaluate_two_min_dist();
+            return self.evaluate_two_min_dist()
         elif heuristic == 'attk':
-            return self.evaluate_attack();
+            return self.evaluate_attack()
+        elif heuristic == 'sim_winrate':
+            return self.simulate()
 
         # Check if the agent player has won or lost
         # Used when searching to the end game
@@ -202,3 +211,28 @@ class MinimaxEnv(EinsteinWuerfeltNichtEnv):
 
         score = -(remaining_cubes_positive + remaining_cubes_negative)
         return score
+    
+    def simulate(self) -> int:
+        """ simulate till game over and get win count """
+        win_count = 0
+        for _ in range(self.num_simulations):
+            action_count = 0
+            # Simulate till game over
+            while not self.check_win():
+                self.switch_player()
+                self.set_dice_roll(random.randint(1, 6))
+                curr_legal_actions = self.get_legal_actions(self.current_player)
+                chosen_action_idx = random.randint(
+                    0, len(curr_legal_actions) - 1)
+                chosen_legal_action = curr_legal_actions[chosen_action_idx]
+                self.make_simulated_action(
+                    self.current_player, chosen_legal_action)
+                action_count += 1
+            # Check if the agent player has won
+            if self.board[-1, -
+                              1] > 0 or not np.any(self.board < 0):
+                win_count += 1
+            # Restore the env after simulation
+            for _ in range(action_count):
+                self.undo_simulated_action()
+        return win_count / self.num_simulations
