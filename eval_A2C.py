@@ -73,12 +73,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--opponent_policy', type=ClassicalPolicy.from_string, default=ClassicalPolicy.random,
                         help='Opponent policy')
     parser.add_argument(
-        '--alpha_model_name',
-        type=str,
-        dest="model_name",
-        default="checkpoint_242.pth.tar",
-        help='model name of alpha zero')
-    parser.add_argument(
         "--max_depth",
         type=int,
         default=5,
@@ -94,6 +88,8 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="checkpoint_242.pth.tar",
         help="model name of alpha zero")
+    parser.add_argument('--num_simulations', type=int, default=10,
+                        help='Number of simulations per env')
     return parser.parse_args()
 
 

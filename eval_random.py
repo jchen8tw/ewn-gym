@@ -75,6 +75,8 @@ def parse_args() -> argparse.Namespace:
                         help='folder of model')
     parser.add_argument('--model_name', type=str, default='checkpoint_100.pth.tar',
                         help='name of model')
+    parser.add_argument('--num_simulations', type=int, default=10,
+                        help='Number of simulations per env')
     return parser.parse_args()
 
 
@@ -92,6 +94,7 @@ if __name__ == "__main__":
         max_depth=args.max_depth,
         model_name=args.model_name,
         model_folder=args.model_folder,
+        num_simulations=args.num_simulations,
     )
     
     agent = RandomAgent(
