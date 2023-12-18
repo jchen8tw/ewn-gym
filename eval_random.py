@@ -75,6 +75,10 @@ def parse_args() -> argparse.Namespace:
                         help='folder of model')
     parser.add_argument('--model_name', type=str, default='checkpoint_100.pth.tar',
                         help='name of model')
+    parser.add_argument('--num_env_copies', type=int, default=5,
+                        help='Number of env copies for multiprocessing')
+    parser.add_argument('--num_simulations_per_env', type=int, default=10,
+                        help='Number of simulations per env')
     return parser.parse_args()
 
 

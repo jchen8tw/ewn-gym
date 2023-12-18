@@ -56,6 +56,10 @@ def parse_args() -> argparse.Namespace:
         description='Evaluate mcts agent', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--num', type=int, default=100,
                         help='Number of rollouts')
+    parser.add_argument('--num_env_copies', type=int, default=5,
+                        help='Number of env copies for multiprocessing')
+    parser.add_argument('--num_simulations_per_env', type=int, default=10,
+                        help='Number of simulations per env')
     parser.add_argument('--render_last', action='store_true',
                         help='Render last rollout', default=False)
     parser.add_argument('--cube_layer', type=int, default=3,
@@ -94,7 +98,10 @@ if __name__ == "__main__":
     
     agent = MctsAgent(
         cube_layer=args.cube_layer,
-        board_size=args.board_size)
+        board_size=args.board_size,
+        num_env_copies=args.num_env_copies,
+        num_simulations_per_env=args.num_simulations_per_env,
+        )
     
     eval_num = args.num
     score = evaluation(env, agent, args.render_last, eval_num)

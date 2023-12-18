@@ -9,18 +9,19 @@ import random
 
 class MctsAgent(PolicyBase):
     def __init__(self, cube_layer: int, board_size: int,
-                 num_simulations: int = 20,
-                 **kwargs):
+                num_simulations_per_env: int = 20, num_env_copies: int = 5,
+                **kwargs):
         from envs import MinimaxEnv
         self.env = MinimaxEnv(
             cube_layer=cube_layer,
             board_size=board_size)
-        self.num_simulations = num_simulations
+        self.num_simulations_per_env = num_simulations_per_env
+        self.num_env_copies = num_env_copies
 
     def simulate(self, env_copy) -> int:
         """ simulate till game over and get win count """
         win_count = 0
-        for _ in range(self.num_simulations):
+        for _ in range(self.num_simulations_per_env):
             action_count = 0
             curr_player = Player.BOTTOM_RIGHT
             # Simulate till game over
@@ -47,18 +48,17 @@ class MctsAgent(PolicyBase):
         """ mcts with multiprocessing """
         legal_actions = self.env.get_legal_actions(Player.TOP_LEFT)
 
-        num_copies_per_env = 5
         envs = []
         for legal_action in legal_actions:
             self.env.make_simulated_action(Player.TOP_LEFT, legal_action)
-            for _ in range(num_copies_per_env):
+            for _ in range(self.num_env_copies):
                 envs.append(copy.deepcopy(self.env))
             self.env.undo_simulated_action()
 
         pool = Pool()  # Create a pool of processes
         tmp_win_counts = pool.map(self.simulate, envs)
-        win_counts = [sum(tmp_win_counts[i: i + num_copies_per_env])
-                      for i in range(0, len(tmp_win_counts), num_copies_per_env)]
+        win_counts = [sum(tmp_win_counts[i: i + self.num_env_copies])
+                      for i in range(0, len(tmp_win_counts), self.num_env_copies)]
         # print(f'tmp_win_counts: {tmp_win_counts}')
         # print(f'win_counts: {win_counts}')
 
