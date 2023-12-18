@@ -94,15 +94,8 @@ if __name__ == "__main__":
 
     env = gym.make(
         'EWN-v0',
-        cube_layer=args.cube_layer,
-        board_size=args.board_size,
-        opponent_policy=args.opponent_policy,
-        # opponent_policy="minimax",
-        render_mode='human',
-        max_depth=args.max_depth,
-        model_name=args.model_name,
-        model_folder=args.model_folder,
-        num_simulations=args.num_simulations,
+        # render_mode='human',
+        **args.__dict__
     )
 
     agent = AlphaZeroAgent(
