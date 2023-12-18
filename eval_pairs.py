@@ -8,7 +8,7 @@ policies = [
         ]
 
 eval_num = 1024
-board_size = 9
+board_size = 5
 cube_layer = 3
 significance_level = 0.05
 
@@ -23,9 +23,6 @@ if __name__ == '__main__':
     
     for agent in policies:
         for opponent in policies:
-            
-            if not(agent == 'mcts' or opponent == 'mcts'):
-                continue
 
             print(f'===== {agent} vs. {opponent} =====')
             command = (
@@ -34,7 +31,8 @@ if __name__ == '__main__':
                     f'--max_depth {max_depth} --num_env_copies {num_env_copies} --num_simulations_per_env {num_simulations_per_env} '
                     f'--model_folder alpha_zero_models --model_name {model_name}'
                     )
+            print(command)
             command_list = command.split()
             subprocess.run(command_list)
             print()
-    
+        

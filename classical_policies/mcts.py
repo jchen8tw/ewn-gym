@@ -9,19 +9,19 @@ import random
 
 class MctsAgent(PolicyBase):
     def __init__(self, cube_layer: int, board_size: int,
-                num_simulations_per_env: int = 20, num_env_copies: int = 5,
+                num_simulations: int = 10, num_env_copies: int = 5,
                 **kwargs):
         from envs import MinimaxEnv
         self.env = MinimaxEnv(
             cube_layer=cube_layer,
             board_size=board_size)
-        self.num_simulations_per_env = num_simulations_per_env
+        self.num_simulations = num_simulations
         self.num_env_copies = num_env_copies
 
     def simulate(self, env_copy) -> int:
         """ simulate till game over and get win count """
         win_count = 0
-        for _ in range(self.num_simulations_per_env):
+        for _ in range(self.num_simulations):
             action_count = 0
             curr_player = Player.BOTTOM_RIGHT
             # Simulate till game over

@@ -73,11 +73,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--opponent_policy', type=ClassicalPolicy.from_string, default=ClassicalPolicy.random, choices=list(ClassicalPolicy),
                         help='Opponent policy')
     parser.add_argument(
-        '--alpha_model_name',
+        '--max_depth',
+        type=int,
+        default=3,
+        help='Max depth for minimax')
+    parser.add_argument('--model_folder', type=str, default='alpha_zero_models',
+                        help='folder of model')
+    parser.add_argument(
+        '--model_name',
         type=str,
         dest="model_name",
         default="checkpoint_242.pth.tar",
         help='model name of alpha zero')
+    parser.add_argument('--num_simulations', type=int, default=10,
+                        help='Number of simulations per env')
     return parser.parse_args()
 
 
