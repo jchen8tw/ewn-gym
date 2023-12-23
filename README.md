@@ -2,7 +2,7 @@
 
 EinStein würfelt nicht for gymnasium
 
-<img src="file:///home/justin/Codes/ewn-gym/assets/ewn.gif" title="" alt="img" width="310">
+<img src="./assets/ewn.gif" title="" alt="img" width="310">
 
 ## How to train an Stable-baseline-3 model ?
 
@@ -23,7 +23,7 @@ python train.py -h
 ## How to evaluate an SB3 model
 
 ```shell
-python eval_A2C.py --opponent_policy [path to model or policy name] --model [path to your model] 
+python eval_A2C.py --opponent_policy [path to model or policy name] --model [path to your model]
 ```
 
 ## How to train an Alpha Zero agent
