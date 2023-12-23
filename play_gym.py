@@ -14,10 +14,18 @@ register(
 )
 
 
+# env = gym.make("EWN-v0", render_mode="human",
+#                cube_layer=3,
+#                board_size=5,
+#                opponent_policy=ClassicalPolicy.minimax)
+
 env = gym.make("EWN-v0", render_mode="human",
                cube_layer=3,
                board_size=5,
-               opponent_policy=ClassicalPolicy.minimax)
+               opponent_policy=ClassicalPolicy.alpha_zero,
+               numMCTSSims=50,
+               cpuct=1.0,
+               model_name="checkpoint_242.pth.tar",)
 
 # Key mappings
 key_to_action = {
