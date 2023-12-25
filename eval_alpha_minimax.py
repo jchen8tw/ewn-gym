@@ -6,6 +6,7 @@ from tqdm import trange
 import argparse
 import gymnasium as gym
 from gymnasium.envs.registration import register
+from PIL import Image
 
 register(
     id='EWN-v0',
@@ -37,15 +38,28 @@ def evaluation(env, model, render_last, eval_num=100) -> np.ndarray:
 
     # Render last rollout
     if render_last:
+
         print("Rendering last rollout")
         done = False
         obs, info = env.reset(seed=eval_num - 1)
-        env.render()
+        states = [env.render()]
 
         while not done:
             action, _state = model.predict(obs, deterministic=True)
             obs, reward, done, _, info = env.step(action)
-            env.render()
+            states.append(env.render())
+
+        images = [Image.fromarray(state) for state in states]
+        images = iter(images)
+        image = next(images)
+        image.save(
+            f"ewn.gif",
+            format="GIF",
+            save_all=True,
+            append_images=images,
+            loop=0,
+            duration=700,
+        )
 
     return score
 
@@ -88,7 +102,7 @@ if __name__ == "__main__":
         cube_layer=args.cube_layer,
         board_size=args.board_size,
         opponent_policy=args.opponent_policy,
-        # render_mode='human',
+        render_mode='rgb_array',
         max_depth=args.max_depth,
         model_name=args.model_name,
         model_folder=args.model_folder,
@@ -97,7 +111,7 @@ if __name__ == "__main__":
 
     agent = AlphaZeroMinimaxAgent(
         # max_depth=args.max_depth,
-        max_depth=2,
+        max_depth=3,
         cube_layer=args.cube_layer,
         board_size=args.board_size,
         model_name=args.model_name,

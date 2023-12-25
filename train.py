@@ -38,7 +38,7 @@ def return_model(config: Dict[str, str | int],
     model = getattr(sb3, config["algorithm"])
     if config["algorithm"] != "A2C":
         model = model(
-            "MlpPolicy",
+            "MultiInputPolicy",
             env,
             # verbose=1,
             batch_size=config["batch_size"],
@@ -75,7 +75,9 @@ def evaluate(config: Dict[str, Any],
         cube_layer=config["cube_layer"],
         board_size=config["board_size"],
         # evaluate with random opponent
-        opponent_policy=ClassicalPolicy.random,
+        # opponent_policy=ClassicalPolicy.random,
+        opponent_policy=ClassicalPolicy.minimax,
+        max_depth=5
     )
     for seed in range(episode_num):
         done = False
@@ -119,10 +121,12 @@ def train(config=None):
     with wandb.init(project="ewn-gym", config=config):
 
         config = dict(wandb.config)
+        # del config["opponent_policy"]
 
         def make_env():
             env = gym.make(
                 'EWN-v0',
+                # opponent_policy=ClassicalPolicy.random,
                 **config
             )
             return env

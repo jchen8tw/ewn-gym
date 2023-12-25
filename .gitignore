@@ -160,7 +160,6 @@ cython_debug/
 #.idea/
 
 
-*.gif
 models/
 .vscode/
 **/.DS_Store
